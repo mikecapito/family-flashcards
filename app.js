@@ -312,7 +312,7 @@ function buildHomeScreen() {
   quizBtn.type = "button";
   quizBtn.className = "btn-primary mode-btn";
   quizBtn.textContent = "Quiz";
-  quizBtn.addEventListener("click", () => alert("Quiz mode coming soon"));
+  quizBtn.addEventListener("click", () => renderQuiz());
   buttons.appendChild(quizBtn);
 
   container.appendChild(buttons);
@@ -542,12 +542,204 @@ function attachSwipe(el) {
   mc.on("swiperight", goPrev);
 }
 
+// ---------- Quiz screen ----------
+
+const quizState = {
+  questions: [],
+  index: 0,
+  score: 0,
+  locked: false,
+  pendingTimeout: null
+};
+
+function generateQuiz() {
+  const order = shuffle(people);
+  return order.map(person => {
+    const others = people.filter(p => p.id !== person.id);
+    const distractors = shuffle(others).slice(0, 3);
+    const choices = shuffle([person, ...distractors]);
+    return { person, choices };
+  });
+}
+
+function buildQuizScreen() {
+  const screen = document.getElementById("quiz-screen");
+  screen.innerHTML = "";
+
+  const quiz = document.createElement("div");
+  quiz.className = "quiz";
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "back-button";
+  back.setAttribute("aria-label", "Back to home");
+  back.textContent = "‹";
+  back.addEventListener("click", exitQuiz);
+  quiz.appendChild(back);
+
+  const progress = document.createElement("div");
+  progress.className = "quiz-progress";
+  progress.id = "quiz-progress";
+  quiz.appendChild(progress);
+
+  const photoWrap = document.createElement("div");
+  photoWrap.className = "quiz-photo";
+  const img = document.createElement("img");
+  img.id = "quiz-photo-img";
+  img.alt = "";
+  photoWrap.appendChild(img);
+  quiz.appendChild(photoWrap);
+
+  const choices = document.createElement("div");
+  choices.className = "quiz-choices";
+  choices.id = "quiz-choices";
+  for (let i = 0; i < 4; i++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "quiz-choice";
+    btn.dataset.slot = String(i);
+    btn.addEventListener("click", () => onChoice(i));
+    choices.appendChild(btn);
+  }
+  quiz.appendChild(choices);
+
+  screen.appendChild(quiz);
+}
+
+function renderQuiz() {
+  cancelPendingAdvance();
+  quizState.questions = generateQuiz();
+  quizState.index = 0;
+  quizState.score = 0;
+  quizState.locked = false;
+  showQuestion();
+  showScreen("quiz");
+}
+
+function showQuestion() {
+  const q = quizState.questions[quizState.index];
+  const img = document.getElementById("quiz-photo-img");
+  const progress = document.getElementById("quiz-progress");
+  img.src = q.person.photo;
+  img.alt = q.person.name;
+  progress.textContent = `Question ${quizState.index + 1} of ${quizState.questions.length}`;
+  const buttons = document.querySelectorAll("#quiz-choices .quiz-choice");
+  buttons.forEach((btn, i) => {
+    btn.textContent = q.choices[i].name;
+    btn.classList.remove("quiz-choice--correct", "quiz-choice--wrong");
+    btn.disabled = false;
+  });
+  quizState.locked = false;
+}
+
+function onChoice(i) {
+  if (quizState.locked) return;
+  quizState.locked = true;
+
+  const q = quizState.questions[quizState.index];
+  const buttons = document.querySelectorAll("#quiz-choices .quiz-choice");
+  const isCorrect = q.choices[i].id === q.person.id;
+  const correctIndex = q.choices.findIndex(c => c.id === q.person.id);
+
+  buttons.forEach(btn => { btn.disabled = true; });
+
+  if (isCorrect) {
+    quizState.score++;
+    buttons[i].classList.add("quiz-choice--correct");
+    quizState.pendingTimeout = setTimeout(advanceQuiz, 1000);
+  } else {
+    buttons[i].classList.add("quiz-choice--wrong");
+    if (correctIndex !== -1) {
+      buttons[correctIndex].classList.add("quiz-choice--correct");
+    }
+    quizState.pendingTimeout = setTimeout(advanceQuiz, 1500);
+  }
+}
+
+function advanceQuiz() {
+  quizState.pendingTimeout = null;
+  quizState.index++;
+  if (quizState.index >= quizState.questions.length) {
+    renderQuizEnd();
+  } else {
+    showQuestion();
+  }
+}
+
+function cancelPendingAdvance() {
+  if (quizState.pendingTimeout !== null) {
+    clearTimeout(quizState.pendingTimeout);
+    quizState.pendingTimeout = null;
+  }
+}
+
+function exitQuiz() {
+  cancelPendingAdvance();
+  renderHome();
+}
+
+// ---------- Quiz end screen ----------
+
+function buildQuizEndScreen() {
+  const screen = document.getElementById("quiz-end-screen");
+  screen.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "quiz-end-container";
+
+  const score = document.createElement("div");
+  score.className = "quiz-end-score";
+  score.id = "quiz-end-score";
+  container.appendChild(score);
+
+  const message = document.createElement("p");
+  message.className = "quiz-end-message";
+  message.id = "quiz-end-message";
+  container.appendChild(message);
+
+  const buttons = document.createElement("div");
+  buttons.className = "quiz-end-buttons";
+
+  const tryAgain = document.createElement("button");
+  tryAgain.type = "button";
+  tryAgain.className = "btn-primary mode-btn";
+  tryAgain.textContent = "Try Again";
+  tryAgain.addEventListener("click", () => renderQuiz());
+  buttons.appendChild(tryAgain);
+
+  const home = document.createElement("button");
+  home.type = "button";
+  home.className = "btn-secondary mode-btn";
+  home.textContent = "Home";
+  home.addEventListener("click", () => renderHome());
+  buttons.appendChild(home);
+
+  container.appendChild(buttons);
+  screen.appendChild(container);
+}
+
+function renderQuizEnd() {
+  const total = quizState.questions.length;
+  const score = quizState.score;
+  document.getElementById("quiz-end-score").textContent = `${score} / ${total}`;
+
+  let msg;
+  if (score >= 7) msg = "Great job!";
+  else if (score >= 4) msg = "Nice work!";
+  else msg = "Keep practicing!";
+  document.getElementById("quiz-end-message").textContent = msg;
+
+  showScreen("quiz-end");
+}
+
 // ---------- Entry point ----------
 
 function init() {
   buildPasswordScreen();
   buildHomeScreen();
   buildBrowseScreen();
+  buildQuizScreen();
+  buildQuizEndScreen();
   renderPassword();
 }
 
