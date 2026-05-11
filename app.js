@@ -1,135 +1,14 @@
-// ---------- Hardcoded data (replaced by fetched data in session 4) ----------
-
-const config = {
-  familyName: "The Frist Family Reunion 2026",
-  ancestor: "eleanor-frist",
-  password: "frist2026"
+// ---------- App state ----------
+// dataState holds everything loaded from the data repo. familyName comes
+// from plaintext config.json; ancestor + people are decrypted from
+// data.enc.json after the user enters the password.
+const dataState = {
+  baseUrl: null,
+  familyName: null,
+  envelope: null,
+  ancestor: null,
+  people: []
 };
-
-const people = [
-  {
-    id: "eleanor-frist",
-    name: "Eleanor Frist",
-    photo: "https://placecats.com/300/300",
-    birthday: "1935-03-12",
-    funFact: "Taught herself to play piano at age 60.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: [], parentsRaw: [],
-      siblings: ["george-frist"], siblingsRaw: ["George Frist"],
-      spouses: [], spousesRaw: [],
-      children: ["robert-frist", "carol-frist"], childrenRaw: ["Robert Frist", "Carol Frist"]
-    }
-  },
-  {
-    id: "robert-frist",
-    name: "Robert Frist",
-    photo: "https://placecats.com/301/300",
-    birthday: "1962-07-04",
-    funFact: "Has visited every US national park.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: ["eleanor-frist"], parentsRaw: ["Eleanor Frist"],
-      siblings: ["carol-frist"], siblingsRaw: ["Carol Frist"],
-      spouses: ["diane-frist"], spousesRaw: ["Diane Frist"],
-      children: ["mike-frist", "sarah-frist"], childrenRaw: ["Mike Frist", "Sarah Frist"]
-    }
-  },
-  {
-    id: "carol-frist",
-    name: "Carol Frist",
-    photo: "https://placecats.com/302/300",
-    birthday: "1965-11-20",
-    funFact: "Makes the best apple pie in three counties.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: ["eleanor-frist"], parentsRaw: ["Eleanor Frist"],
-      siblings: ["robert-frist"], siblingsRaw: ["Robert Frist"],
-      spouses: [], spousesRaw: [],
-      children: ["jake-frist"], childrenRaw: ["Jake Frist"]
-    }
-  },
-  {
-    id: "diane-frist",
-    name: "Diane Frist",
-    photo: "https://placecats.com/303/300",
-    birthday: "1964-04-29",
-    funFact: "Ran a marathon in every decade of her life.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: [], parentsRaw: [],
-      siblings: [], siblingsRaw: [],
-      spouses: ["robert-frist"], spousesRaw: ["Robert Frist"],
-      children: ["mike-frist", "sarah-frist"], childrenRaw: ["Mike Frist", "Sarah Frist"]
-    }
-  },
-  {
-    id: "mike-frist",
-    name: "Mike Frist",
-    photo: "https://placecats.com/304/300",
-    birthday: "1990-08-15",
-    funFact: "Once ate 12 tacos in a single sitting.",
-    syncedAt: null,
-    family: {
-      grandparents: ["eleanor-frist"], grandparentsRaw: ["Eleanor Frist"],
-      parents: ["robert-frist", "diane-frist"], parentsRaw: ["Robert Frist", "Diane Frist"],
-      siblings: ["sarah-frist"], siblingsRaw: ["Sarah Frist"],
-      spouses: [], spousesRaw: [],
-      children: [], childrenRaw: []
-    }
-  },
-  {
-    id: "sarah-frist",
-    name: "Sarah Frist",
-    photo: "https://placecats.com/305/300",
-    birthday: "1993-12-01",
-    funFact: "Speaks four languages fluently.",
-    syncedAt: null,
-    family: {
-      grandparents: ["eleanor-frist"], grandparentsRaw: ["Eleanor Frist"],
-      parents: ["robert-frist", "diane-frist"], parentsRaw: ["Robert Frist", "Diane Frist"],
-      siblings: ["mike-frist"], siblingsRaw: ["Mike Frist"],
-      spouses: [], spousesRaw: [],
-      children: [], childrenRaw: []
-    }
-  },
-  {
-    id: "jake-frist",
-    name: "Jake Frist",
-    photo: "https://placecats.com/306/300",
-    birthday: "1992-05-30",
-    funFact: "Built his own sailing boat from scratch.",
-    syncedAt: null,
-    family: {
-      grandparents: ["eleanor-frist"], grandparentsRaw: ["Eleanor Frist"],
-      parents: ["carol-frist"], parentsRaw: ["Carol Frist"],
-      siblings: [], siblingsRaw: [],
-      spouses: [], spousesRaw: [],
-      children: [], childrenRaw: []
-    }
-  },
-  {
-    id: "george-frist",
-    name: "George Frist",
-    photo: "https://placecats.com/307/300",
-    birthday: "1938-09-08",
-    funFact: "Played semi-professional baseball in the 1950s.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: [], parentsRaw: [],
-      siblings: ["eleanor-frist"], siblingsRaw: ["Eleanor Frist"],
-      spouses: [], spousesRaw: [],
-      children: [], childrenRaw: []
-    }
-  }
-];
-
-// ---------- State ----------
 
 const state = {
   deck: [],
@@ -137,10 +16,18 @@ const state = {
   animating: false
 };
 
+const quizState = {
+  questions: [],
+  index: 0,
+  score: 0,
+  locked: false,
+  pendingTimeout: null
+};
+
 // ---------- Utilities ----------
 
 function getPersonById(id) {
-  return people.find(p => p.id === id);
+  return dataState.people.find(p => p.id === id);
 }
 
 function shuffle(arr) {
@@ -153,9 +40,9 @@ function shuffle(arr) {
 }
 
 function buildDeck() {
-  const ancestor = getPersonById(config.ancestor);
-  const others = people.filter(p => p.id !== config.ancestor);
-  return [ancestor, ...shuffle(others)];
+  const ancestor = getPersonById(dataState.ancestor);
+  const others = dataState.people.filter(p => p.id !== dataState.ancestor);
+  return ancestor ? [ancestor, ...shuffle(others)] : shuffle(others);
 }
 
 function calcAge(birthday) {
@@ -174,9 +61,134 @@ function isBirthMonth(birthday) {
   return birth.getMonth() === new Date().getMonth();
 }
 
+function photoUrl(relativePath) {
+  if (!relativePath) return "";
+  if (/^https?:\/\//i.test(relativePath)) return relativePath;
+  if (!dataState.baseUrl) return relativePath;
+  return dataState.baseUrl + relativePath.replace(/^\/+/, "");
+}
+
+// ---------- Crypto (Web Crypto API) ----------
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function deriveKey(password, salt, iterations) {
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+}
+
+async function decryptEnvelope(envelope, password) {
+  const salt = base64ToBytes(envelope.salt);
+  const iv = base64ToBytes(envelope.iv);
+  const ciphertext = base64ToBytes(envelope.ciphertext);
+  const key = await deriveKey(password, salt, envelope.iterations);
+  const plaintextBuf = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    ciphertext
+  );
+  return JSON.parse(new TextDecoder().decode(plaintextBuf));
+}
+
+// ---------- Data loading ----------
+
+function resolveBaseUrl(dataParam) {
+  if (!dataParam) return null;
+  if (/^https?:\/\//i.test(dataParam)) {
+    return dataParam.endsWith("/") ? dataParam : dataParam + "/";
+  }
+  // Expect "owner/repo" — restrict charset to valid GitHub names.
+  const m = dataParam.match(/^([\w.-]+)\/([\w.-]+)\/?$/);
+  if (!m) return null;
+  return `https://${m[1]}.github.io/${m[2]}/`;
+}
+
+async function loadFamilyData() {
+  const params = new URLSearchParams(window.location.search);
+  const baseUrl = resolveBaseUrl(params.get("data"));
+  if (!baseUrl) {
+    return {
+      ok: false,
+      kind: "no-data",
+      message:
+        "No family data specified. The link you used should include a ?data= parameter — please ask the person who shared the link."
+    };
+  }
+  dataState.baseUrl = baseUrl;
+
+  let configResp, envelopeResp;
+  try {
+    [configResp, envelopeResp] = await Promise.all([
+      fetch(baseUrl + "config.json", { cache: "no-store" }),
+      fetch(baseUrl + "data.enc.json", { cache: "no-store" })
+    ]);
+  } catch (e) {
+    return {
+      ok: false,
+      kind: "network",
+      message: "Couldn't load family data — check your connection and reload."
+    };
+  }
+  if (!configResp.ok || !envelopeResp.ok) {
+    return {
+      ok: false,
+      kind: "network",
+      message: "Couldn't load family data — check your connection and reload."
+    };
+  }
+
+  let config, envelope;
+  try {
+    config = await configResp.json();
+    envelope = await envelopeResp.json();
+  } catch (e) {
+    return {
+      ok: false,
+      kind: "corrupt",
+      message: "Family data appears corrupted — contact the family organizer."
+    };
+  }
+
+  if (
+    !config ||
+    typeof config.familyName !== "string" ||
+    !envelope ||
+    envelope.version !== 1 ||
+    typeof envelope.salt !== "string" ||
+    typeof envelope.iv !== "string" ||
+    typeof envelope.ciphertext !== "string" ||
+    typeof envelope.iterations !== "number"
+  ) {
+    return {
+      ok: false,
+      kind: "corrupt",
+      message: "Family data appears corrupted — contact the family organizer."
+    };
+  }
+
+  dataState.familyName = config.familyName;
+  dataState.envelope = envelope;
+  return { ok: true };
+}
+
 // ---------- Screen routing ----------
-// Function-per-screen pattern. One persistent container per screen;
-// showScreen() toggles which is visible.
 
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
@@ -186,7 +198,7 @@ function showScreen(name) {
 
 // ---------- Password screen ----------
 
-function buildPasswordScreen() {
+function renderPassword() {
   const screen = document.getElementById("password-screen");
   screen.innerHTML = "";
 
@@ -195,7 +207,7 @@ function buildPasswordScreen() {
 
   const heading = document.createElement("h1");
   heading.className = "family-name";
-  heading.textContent = config.familyName;
+  heading.textContent = dataState.familyName || "";
   container.appendChild(heading);
 
   const sub = document.createElement("p");
@@ -230,42 +242,61 @@ function buildPasswordScreen() {
 
   screen.appendChild(container);
 
-  form.addEventListener("submit", e => {
+  let busy = false;
+
+  form.addEventListener("submit", async e => {
     e.preventDefault();
-    const attempt = input.value;
-    if (attempt === config.password) {
+    if (busy) return;
+    let password = input.value;
+    if (!password) return;
+
+    busy = true;
+    input.disabled = true;
+    button.disabled = true;
+    button.textContent = "Decrypting…";
+    button.classList.add("is-busy");
+    error.textContent = "";
+
+    try {
+      const decrypted = await decryptEnvelope(dataState.envelope, password);
+      // Discard the password from local references as soon as we're done with it.
+      password = null;
+
+      if (!decrypted || !Array.isArray(decrypted.people) || typeof decrypted.ancestor !== "string") {
+        // Decrypt succeeded but plaintext is malformed — treat as corrupt data.
+        renderError("Family data appears corrupted — contact the family organizer.");
+        return;
+      }
+
+      dataState.ancestor = decrypted.ancestor;
+      dataState.people = decrypted.people;
+
       input.value = "";
-      error.textContent = "";
       renderHome();
-    } else {
+    } catch (err) {
+      // AES-GCM throws on bad key/tag — overwhelmingly the wrong-password case.
       error.textContent = "Incorrect password — try again";
+      input.value = "";
       input.classList.remove("shake");
-      // Force reflow so the animation re-triggers on consecutive wrong attempts.
       void input.offsetWidth;
       input.classList.add("shake");
-      input.value = "";
       input.focus();
+    } finally {
+      busy = false;
+      input.disabled = false;
+      button.disabled = false;
+      button.textContent = "Enter";
+      button.classList.remove("is-busy");
     }
   });
-}
 
-function renderPassword() {
   showScreen("password");
-  const input = document.getElementById("password-input");
-  const error = document.getElementById("password-error");
-  if (input) {
-    input.value = "";
-    input.classList.remove("shake");
-  }
-  if (error) error.textContent = "";
-  // Defer focus so the transition has a chance to start; iOS Safari sometimes
-  // ignores focus() on a hidden element.
-  setTimeout(() => input && input.focus(), 50);
+  setTimeout(() => input.focus(), 50);
 }
 
 // ---------- Home screen ----------
 
-function buildHomeScreen() {
+function renderHome() {
   const screen = document.getElementById("home-screen");
   screen.innerHTML = "";
 
@@ -274,29 +305,31 @@ function buildHomeScreen() {
 
   const heading = document.createElement("h1");
   heading.className = "family-name home-title";
-  heading.textContent = config.familyName;
+  heading.textContent = dataState.familyName || "";
   container.appendChild(heading);
 
-  const ancestor = getPersonById(config.ancestor);
+  const ancestor = getPersonById(dataState.ancestor);
 
-  const feature = document.createElement("button");
-  feature.type = "button";
-  feature.className = "ancestor-feature";
-  feature.setAttribute("aria-label", `Open ${ancestor.name}'s card`);
+  if (ancestor) {
+    const feature = document.createElement("button");
+    feature.type = "button";
+    feature.className = "ancestor-feature";
+    feature.setAttribute("aria-label", `Open ${ancestor.name}'s card`);
 
-  const photo = document.createElement("img");
-  photo.className = "ancestor-photo";
-  photo.src = ancestor.photo;
-  photo.alt = ancestor.name;
-  feature.appendChild(photo);
+    const photo = document.createElement("img");
+    photo.className = "ancestor-photo";
+    photo.src = photoUrl(ancestor.photo);
+    photo.alt = ancestor.name;
+    feature.appendChild(photo);
 
-  const ancestorName = document.createElement("div");
-  ancestorName.className = "ancestor-name";
-  ancestorName.textContent = ancestor.name;
-  feature.appendChild(ancestorName);
+    const ancestorName = document.createElement("div");
+    ancestorName.className = "ancestor-name";
+    ancestorName.textContent = ancestor.name;
+    feature.appendChild(ancestorName);
 
-  feature.addEventListener("click", () => renderBrowse());
-  container.appendChild(feature);
+    feature.addEventListener("click", () => renderBrowse());
+    container.appendChild(feature);
+  }
 
   const buttons = document.createElement("div");
   buttons.className = "mode-buttons";
@@ -318,9 +351,6 @@ function buildHomeScreen() {
   container.appendChild(buttons);
 
   screen.appendChild(container);
-}
-
-function renderHome() {
   showScreen("home");
 }
 
@@ -364,8 +394,6 @@ function renderBrowse() {
   showScreen("browse");
 }
 
-// ---------- Card rendering ----------
-
 function mountCard(viewport, indicator) {
   viewport.innerHTML = "";
   const person = state.deck[state.index];
@@ -378,16 +406,14 @@ function buildCardElement(person) {
   const card = document.createElement("div");
   card.className = "card";
 
-  // Photo
   const photo = document.createElement("div");
   photo.className = "card-photo";
   const img = document.createElement("img");
-  img.src = person.photo;
+  img.src = photoUrl(person.photo);
   img.alt = person.name;
   photo.appendChild(img);
   card.appendChild(photo);
 
-  // Info
   const info = document.createElement("div");
   info.className = "card-info";
 
@@ -470,8 +496,6 @@ function renderChipGroup(label, ids, raws) {
   return group;
 }
 
-// ---------- Navigation ----------
-
 function goNext() {
   if (state.animating) return;
   if (state.index >= state.deck.length - 1) return;
@@ -505,7 +529,6 @@ function animateTo(newIndex, direction) {
   viewport.appendChild(newCard);
 
   state.animating = true;
-  // Force layout so the initial transform applies before we transition.
   void newCard.offsetWidth;
 
   if (oldCard) {
@@ -526,13 +549,10 @@ function animateTo(newIndex, direction) {
   };
 
   newCard.addEventListener("transitionend", cleanup, { once: true });
-  // Safety fallback in case transitionend doesn't fire.
   setTimeout(() => {
     if (state.animating) cleanup();
   }, 500);
 }
-
-// ---------- Swipe ----------
 
 function attachSwipe(el) {
   if (typeof Hammer === "undefined") return;
@@ -544,18 +564,10 @@ function attachSwipe(el) {
 
 // ---------- Quiz screen ----------
 
-const quizState = {
-  questions: [],
-  index: 0,
-  score: 0,
-  locked: false,
-  pendingTimeout: null
-};
-
 function generateQuiz() {
-  const order = shuffle(people);
+  const order = shuffle(dataState.people);
   return order.map(person => {
-    const others = people.filter(p => p.id !== person.id);
+    const others = dataState.people.filter(p => p.id !== person.id);
     const distractors = shuffle(others).slice(0, 3);
     const choices = shuffle([person, ...distractors]);
     return { person, choices };
@@ -620,7 +632,7 @@ function showQuestion() {
   const q = quizState.questions[quizState.index];
   const img = document.getElementById("quiz-photo-img");
   const progress = document.getElementById("quiz-progress");
-  img.src = q.person.photo;
+  img.src = photoUrl(q.person.photo);
   img.alt = q.person.name;
   progress.textContent = `Question ${quizState.index + 1} of ${quizState.questions.length}`;
   const buttons = document.querySelectorAll("#quiz-choices .quiz-choice");
@@ -680,21 +692,26 @@ function exitQuiz() {
 
 // ---------- Quiz end screen ----------
 
-function buildQuizEndScreen() {
+function renderQuizEnd() {
   const screen = document.getElementById("quiz-end-screen");
   screen.innerHTML = "";
+
+  const total = quizState.questions.length;
+  const score = quizState.score;
 
   const container = document.createElement("div");
   container.className = "quiz-end-container";
 
-  const score = document.createElement("div");
-  score.className = "quiz-end-score";
-  score.id = "quiz-end-score";
-  container.appendChild(score);
+  const scoreEl = document.createElement("div");
+  scoreEl.className = "quiz-end-score";
+  scoreEl.textContent = `${score} / ${total}`;
+  container.appendChild(scoreEl);
 
   const message = document.createElement("p");
   message.className = "quiz-end-message";
-  message.id = "quiz-end-message";
+  if (score >= 7) message.textContent = "Great job!";
+  else if (score >= 4) message.textContent = "Nice work!";
+  else message.textContent = "Keep practicing!";
   container.appendChild(message);
 
   const buttons = document.createElement("div");
@@ -716,30 +733,50 @@ function buildQuizEndScreen() {
 
   container.appendChild(buttons);
   screen.appendChild(container);
+  showScreen("quiz-end");
 }
 
-function renderQuizEnd() {
-  const total = quizState.questions.length;
-  const score = quizState.score;
-  document.getElementById("quiz-end-score").textContent = `${score} / ${total}`;
+// ---------- Error screen ----------
 
-  let msg;
-  if (score >= 7) msg = "Great job!";
-  else if (score >= 4) msg = "Nice work!";
-  else msg = "Keep practicing!";
-  document.getElementById("quiz-end-message").textContent = msg;
+function renderError(message) {
+  const screen = document.getElementById("error-screen");
+  screen.innerHTML = "";
 
-  showScreen("quiz-end");
+  const container = document.createElement("div");
+  container.className = "error-container";
+
+  const heading = document.createElement("h1");
+  heading.className = "error-heading";
+  heading.textContent = "Something went wrong";
+  container.appendChild(heading);
+
+  const msg = document.createElement("p");
+  msg.className = "error-message-text";
+  msg.textContent = message;
+  container.appendChild(msg);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn-primary mode-btn";
+  btn.textContent = "Reload";
+  btn.addEventListener("click", () => window.location.reload());
+  container.appendChild(btn);
+
+  screen.appendChild(container);
+  showScreen("error");
 }
 
 // ---------- Entry point ----------
 
-function init() {
-  buildPasswordScreen();
-  buildHomeScreen();
+async function init() {
   buildBrowseScreen();
   buildQuizScreen();
-  buildQuizEndScreen();
+
+  const result = await loadFamilyData();
+  if (!result.ok) {
+    renderError(result.message);
+    return;
+  }
   renderPassword();
 }
 

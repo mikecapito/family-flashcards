@@ -575,3 +575,54 @@ html, body {
 .btn-secondary:active {
   background: rgba(217, 119, 6, 0.08);
 }
+
+/* ---------- Decrypting state on the password button ---------- */
+
+.btn-primary:disabled {
+  cursor: progress;
+  opacity: 0.85;
+}
+
+.btn-primary.is-busy {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.password-input:disabled {
+  opacity: 0.7;
+}
+
+/* ---------- Error screen ---------- */
+
+.error-screen {
+  background: var(--bg);
+  justify-content: center;
+  align-items: center;
+  padding: 32px 24px;
+  overflow-y: auto;
+}
+
+.error-container {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.error-heading {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.error-message-text {
+  font-size: 16px;
+  color: var(--text);
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
