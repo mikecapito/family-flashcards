@@ -174,36 +174,194 @@ function isBirthMonth(birthday) {
   return birth.getMonth() === new Date().getMonth();
 }
 
-// ---------- Screen renderers ----------
-// Function-per-screen pattern. Session 2 adds renderPassword + renderHome content.
+// ---------- Screen routing ----------
+// Function-per-screen pattern. One persistent container per screen;
+// showScreen() toggles which is visible.
+
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
+  const target = document.getElementById(`${name}-screen`);
+  if (target) target.classList.add("active");
+}
+
+// ---------- Password screen ----------
+
+function buildPasswordScreen() {
+  const screen = document.getElementById("password-screen");
+  screen.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "password-container";
+
+  const heading = document.createElement("h1");
+  heading.className = "family-name";
+  heading.textContent = config.familyName;
+  container.appendChild(heading);
+
+  const sub = document.createElement("p");
+  sub.className = "subheading";
+  sub.textContent = "Please enter the family password";
+  container.appendChild(sub);
+
+  const form = document.createElement("form");
+  form.className = "password-form";
+
+  const input = document.createElement("input");
+  input.type = "password";
+  input.className = "password-input";
+  input.id = "password-input";
+  input.autocomplete = "off";
+  input.setAttribute("autocapitalize", "off");
+  input.setAttribute("spellcheck", "false");
+  form.appendChild(input);
+
+  const button = document.createElement("button");
+  button.type = "submit";
+  button.className = "btn-primary";
+  button.textContent = "Enter";
+  form.appendChild(button);
+
+  container.appendChild(form);
+
+  const error = document.createElement("p");
+  error.className = "error-message";
+  error.id = "password-error";
+  container.appendChild(error);
+
+  screen.appendChild(container);
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const attempt = input.value;
+    if (attempt === config.password) {
+      input.value = "";
+      error.textContent = "";
+      renderHome();
+    } else {
+      error.textContent = "Incorrect password — try again";
+      input.classList.remove("shake");
+      // Force reflow so the animation re-triggers on consecutive wrong attempts.
+      void input.offsetWidth;
+      input.classList.add("shake");
+      input.value = "";
+      input.focus();
+    }
+  });
+}
 
 function renderPassword() {
-  // Placeholder for session 2.
+  showScreen("password");
+  const input = document.getElementById("password-input");
+  const error = document.getElementById("password-error");
+  if (input) {
+    input.value = "";
+    input.classList.remove("shake");
+  }
+  if (error) error.textContent = "";
+  // Defer focus so the transition has a chance to start; iOS Safari sometimes
+  // ignores focus() on a hidden element.
+  setTimeout(() => input && input.focus(), 50);
+}
+
+// ---------- Home screen ----------
+
+function buildHomeScreen() {
+  const screen = document.getElementById("home-screen");
+  screen.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "home-container";
+
+  const heading = document.createElement("h1");
+  heading.className = "family-name home-title";
+  heading.textContent = config.familyName;
+  container.appendChild(heading);
+
+  const ancestor = getPersonById(config.ancestor);
+
+  const feature = document.createElement("button");
+  feature.type = "button";
+  feature.className = "ancestor-feature";
+  feature.setAttribute("aria-label", `Open ${ancestor.name}'s card`);
+
+  const photo = document.createElement("img");
+  photo.className = "ancestor-photo";
+  photo.src = ancestor.photo;
+  photo.alt = ancestor.name;
+  feature.appendChild(photo);
+
+  const ancestorName = document.createElement("div");
+  ancestorName.className = "ancestor-name";
+  ancestorName.textContent = ancestor.name;
+  feature.appendChild(ancestorName);
+
+  feature.addEventListener("click", () => renderBrowse());
+  container.appendChild(feature);
+
+  const buttons = document.createElement("div");
+  buttons.className = "mode-buttons";
+
+  const browseBtn = document.createElement("button");
+  browseBtn.type = "button";
+  browseBtn.className = "btn-primary mode-btn";
+  browseBtn.textContent = "Browse";
+  browseBtn.addEventListener("click", () => renderBrowse());
+  buttons.appendChild(browseBtn);
+
+  const quizBtn = document.createElement("button");
+  quizBtn.type = "button";
+  quizBtn.className = "btn-primary mode-btn";
+  quizBtn.textContent = "Quiz";
+  quizBtn.addEventListener("click", () => alert("Quiz mode coming soon"));
+  buttons.appendChild(quizBtn);
+
+  container.appendChild(buttons);
+
+  screen.appendChild(container);
 }
 
 function renderHome() {
-  // Placeholder for session 2.
+  showScreen("home");
 }
 
-function renderBrowse() {
-  const app = document.getElementById("app");
-  app.innerHTML = "";
+// ---------- Browse screen ----------
 
-  const screen = document.createElement("div");
-  screen.className = "screen browse";
+function buildBrowseScreen() {
+  const screen = document.getElementById("browse-screen");
+  screen.innerHTML = "";
+
+  const browse = document.createElement("div");
+  browse.className = "browse";
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "back-button";
+  back.setAttribute("aria-label", "Back to home");
+  back.textContent = "‹";
+  back.addEventListener("click", () => renderHome());
+  browse.appendChild(back);
 
   const indicator = document.createElement("div");
   indicator.className = "position-indicator";
-  screen.appendChild(indicator);
+  browse.appendChild(indicator);
 
   const viewport = document.createElement("div");
   viewport.className = "card-viewport";
-  screen.appendChild(viewport);
+  browse.appendChild(viewport);
 
-  app.appendChild(screen);
+  screen.appendChild(browse);
 
-  mountCard(viewport, indicator);
   attachSwipe(viewport);
+}
+
+function renderBrowse() {
+  state.deck = buildDeck();
+  state.index = 0;
+  state.animating = false;
+  const viewport = document.querySelector("#browse-screen .card-viewport");
+  const indicator = document.querySelector("#browse-screen .position-indicator");
+  mountCard(viewport, indicator);
+  showScreen("browse");
 }
 
 // ---------- Card rendering ----------
@@ -387,10 +545,10 @@ function attachSwipe(el) {
 // ---------- Entry point ----------
 
 function init() {
-  state.deck = buildDeck();
-  state.index = 0;
-  // Session 2 will route through renderPassword/renderHome first.
-  renderBrowse();
+  buildPasswordScreen();
+  buildHomeScreen();
+  buildBrowseScreen();
+  renderPassword();
 }
 
 document.addEventListener("DOMContentLoaded", init);

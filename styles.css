@@ -29,16 +29,27 @@ html, body {
 }
 
 #app {
+  position: relative;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
 }
 
 .screen {
-  height: 100%;
-  width: 100%;
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.screen.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 /* Browse screen */
@@ -205,4 +216,204 @@ html, body {
 .card.slide-in-active {
   transform: translateX(0);
   transition: transform 280ms ease;
+}
+
+/* ---------- Password screen ---------- */
+
+.password-screen {
+  background: var(--bg);
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.password-container {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+}
+
+.password-container .family-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+.password-container .subheading {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin: 0 0 24px;
+}
+
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.password-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text);
+  outline: none;
+  text-align: center;
+  letter-spacing: 0.1em;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.password-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+}
+
+.btn-primary {
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.btn-primary:active {
+  opacity: 0.88;
+}
+
+.error-message {
+  min-height: 1.4em;
+  margin: 14px 0 0;
+  font-size: 14px;
+  color: #b91c1c;
+  font-weight: 500;
+}
+
+@keyframes shake {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(-8px); }
+  30%  { transform: translateX(8px); }
+  45%  { transform: translateX(-6px); }
+  60%  { transform: translateX(6px); }
+  75%  { transform: translateX(-3px); }
+  90%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
+.password-input.shake {
+  animation: shake 400ms ease;
+  border-color: #b91c1c;
+}
+
+/* ---------- Home screen ---------- */
+
+.home-screen {
+  background: var(--bg);
+  padding: 32px 24px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.home-container {
+  flex: 1;
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 0;
+}
+
+.home-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.ancestor-feature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ancestor-feature:active .ancestor-photo {
+  transform: scale(0.97);
+}
+
+.ancestor-photo {
+  width: min(50vw, 220px);
+  height: min(50vw, 220px);
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid var(--card-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: transform 120ms ease;
+}
+
+.ancestor-name {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+}
+
+.mode-buttons {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mode-btn {
+  width: 100%;
+  min-height: 56px;
+  font-size: 18px;
+}
+
+/* ---------- Back button (Browse) ---------- */
+
+.back-button {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  padding: 0 0 4px 0;
+  cursor: pointer;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-button:active {
+  background: rgba(0, 0, 0, 0.7);
 }
