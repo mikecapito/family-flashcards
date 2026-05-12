@@ -109,21 +109,43 @@ async function decryptEnvelope(envelope, password) {
 
 // ---------- Data loading ----------
 
-function resolveBaseUrl(dataParam) {
+// Resolves ?data= into { encUrl, photosBaseUrl }.
+// Supported forms:
+//   owner/repo            → photosBase https://owner.github.io/repo/
+//                           enc       https://owner.github.io/repo/data.enc.json
+//   owner/repo/slug       → photosBase https://owner.github.io/repo/
+//                           enc       https://owner.github.io/repo/slug.enc.json
+//   https://host/path/    → photosBase https://host/path/
+//                           enc       https://host/path/data.enc.json
+//   https://host/path/slug → photosBase https://host/path/
+//                           enc       https://host/path/slug.enc.json
+function resolveDataSource(dataParam) {
   if (!dataParam) return null;
+
   if (/^https?:\/\//i.test(dataParam)) {
-    return dataParam.endsWith("/") ? dataParam : dataParam + "/";
+    if (dataParam.endsWith("/")) {
+      return { encUrl: dataParam + "data.enc.json", photosBase: dataParam };
+    }
+    const lastSlash = dataParam.lastIndexOf("/");
+    if (lastSlash < dataParam.indexOf("://") + 3) return null;
+    const photosBase = dataParam.slice(0, lastSlash + 1);
+    const slug = dataParam.slice(lastSlash + 1);
+    if (!/^[\w.-]+$/.test(slug)) return null;
+    return { encUrl: photosBase + slug + ".enc.json", photosBase };
   }
-  // Expect "owner/repo" — restrict charset to valid GitHub names.
-  const m = dataParam.match(/^([\w.-]+)\/([\w.-]+)\/?$/);
-  if (!m) return null;
-  return `https://${m[1]}.github.io/${m[2]}/`;
+
+  const parts = dataParam.split("/").filter(Boolean);
+  if (parts.length < 2 || parts.length > 3) return null;
+  if (!parts.every(p => /^[\w.-]+$/.test(p))) return null;
+  const photosBase = `https://${parts[0]}.github.io/${parts[1]}/`;
+  const file = parts.length === 3 ? parts[2] + ".enc.json" : "data.enc.json";
+  return { encUrl: photosBase + file, photosBase };
 }
 
 async function loadFamilyData() {
   const params = new URLSearchParams(window.location.search);
-  const baseUrl = resolveBaseUrl(params.get("data"));
-  if (!baseUrl) {
+  const source = resolveDataSource(params.get("data"));
+  if (!source) {
     return {
       ok: false,
       kind: "no-data",
@@ -131,14 +153,11 @@ async function loadFamilyData() {
         "No family data specified. The link you used should include a ?data= parameter — please ask the person who shared the link."
     };
   }
-  dataState.baseUrl = baseUrl;
+  dataState.baseUrl = source.photosBase;
 
-  let configResp, envelopeResp;
+  let envelopeResp;
   try {
-    [configResp, envelopeResp] = await Promise.all([
-      fetch(baseUrl + "config.json", { cache: "no-store" }),
-      fetch(baseUrl + "data.enc.json", { cache: "no-store" })
-    ]);
+    envelopeResp = await fetch(source.encUrl, { cache: "no-store" });
   } catch (e) {
     return {
       ok: false,
@@ -146,7 +165,7 @@ async function loadFamilyData() {
       message: "Couldn't load family data — check your connection and reload."
     };
   }
-  if (!configResp.ok || !envelopeResp.ok) {
+  if (!envelopeResp.ok) {
     return {
       ok: false,
       kind: "network",
@@ -154,9 +173,8 @@ async function loadFamilyData() {
     };
   }
 
-  let config, envelope;
+  let envelope;
   try {
-    config = await configResp.json();
     envelope = await envelopeResp.json();
   } catch (e) {
     return {
@@ -167,8 +185,6 @@ async function loadFamilyData() {
   }
 
   if (
-    !config ||
-    typeof config.familyName !== "string" ||
     !envelope ||
     envelope.version !== 1 ||
     typeof envelope.salt !== "string" ||
@@ -183,7 +199,6 @@ async function loadFamilyData() {
     };
   }
 
-  dataState.familyName = config.familyName;
   dataState.envelope = envelope;
   return { ok: true };
 }
@@ -207,7 +222,7 @@ function renderPassword() {
 
   const heading = document.createElement("h1");
   heading.className = "family-name";
-  heading.textContent = dataState.familyName || "";
+  heading.textContent = "Family Flashcards";
   container.appendChild(heading);
 
   const sub = document.createElement("p");
@@ -262,12 +277,18 @@ function renderPassword() {
       // Discard the password from local references as soon as we're done with it.
       password = null;
 
-      if (!decrypted || !Array.isArray(decrypted.people) || typeof decrypted.ancestor !== "string") {
+      if (
+        !decrypted ||
+        typeof decrypted.familyName !== "string" ||
+        typeof decrypted.ancestor !== "string" ||
+        !Array.isArray(decrypted.people)
+      ) {
         // Decrypt succeeded but plaintext is malformed — treat as corrupt data.
         renderError("Family data appears corrupted — contact the family organizer.");
         return;
       }
 
+      dataState.familyName = decrypted.familyName;
       dataState.ancestor = decrypted.ancestor;
       dataState.people = decrypted.people;
 

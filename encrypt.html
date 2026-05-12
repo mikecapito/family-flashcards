@@ -149,6 +149,7 @@
       <div class="field">
         <label for="plaintext">Plaintext JSON</label>
         <textarea id="plaintext" spellcheck="false" placeholder='{
+  "familyName": "The Frist Family Reunion 2026",
   "ancestor": "eleanor-frist",
   "people": [ ... ]
 }'></textarea>
@@ -271,8 +272,12 @@
           setStatus(status, "Plaintext JSON must be an object with ancestor and people fields.", "error");
           return;
         }
-        if (typeof parsed.ancestor !== "string" || !Array.isArray(parsed.people)) {
-          setStatus(status, "Plaintext JSON must include an 'ancestor' string and a 'people' array.", "error");
+        if (
+          typeof parsed.familyName !== "string" ||
+          typeof parsed.ancestor !== "string" ||
+          !Array.isArray(parsed.people)
+        ) {
+          setStatus(status, "Plaintext JSON must include a 'familyName' string, an 'ancestor' string, and a 'people' array.", "error");
           return;
         }
         if (password.length < 8) {
