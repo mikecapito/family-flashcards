@@ -36,6 +36,9 @@ const adminState = {
   pendingPhotos: new Map(), // path → Blob
   changes: [],            // [{type:'add'|'edit'|'delete', name}]
   pickerContext: null,    // { relType }
+
+  // Create-new-family state
+  isNewFamily: false,     // true between Create-family and first successful publish
 };
 
 const REL_TYPES = ["grandparents", "parents", "siblings", "spouses", "children"];
@@ -411,7 +414,7 @@ function recordChange(type, name) {
 }
 
 function hasUnsavedChanges() {
-  return adminState.changes.length > 0;
+  return adminState.changes.length > 0 || adminState.isNewFamily;
 }
 
 // ---------- Login screen ----------
@@ -511,6 +514,19 @@ function renderLogin() {
   });
   card.appendChild(unlock);
 
+  // Create new family
+  card.appendChild(el("button", {
+    type: "button",
+    class: "btn-secondary",
+    text: "Create new family",
+    style: "width:100%;margin-top:10px;",
+    onclick: () => renderCreateFamily({
+      slugPrefill: adminState.familySlug || "",
+      repoPrefill: repoInput.value.trim(),
+      patPrefill: patInput.value
+    })
+  }));
+
   // Submit on Enter
   [pwInput, repoInput, patInput].forEach(input => {
     input.addEventListener("keydown", e => {
@@ -557,6 +573,20 @@ async function attemptLogin(pwInput, repoInput, patInput, errorEl, btn) {
       envelopeResp = await fetch(adminState.encUrl, { cache: "no-store" });
     } catch (e) {
       throw new Error("Couldn't fetch the data file. Check your connection.");
+    }
+    if (envelopeResp.status === 404) {
+      // No file at this slug — offer to create a fresh family here.
+      hideOverlay();
+      btn.disabled = false;
+      btn.textContent = "Unlock";
+      renderCreateFamily({
+        slugPrefill: adminState.familySlug || "",
+        repoPrefill: repoVal,
+        patPrefill: pat,
+        passwordPrefill: pw,
+        noticeText: "No family found at this slug — set it up now?"
+      });
+      return;
     }
     if (!envelopeResp.ok) {
       throw new Error(`Couldn't fetch the data file (HTTP ${envelopeResp.status}).`);
@@ -638,6 +668,293 @@ async function attemptLogin(pwInput, repoInput, patInput, errorEl, btn) {
   }
 }
 
+// ---------- Create new family ----------
+
+function deriveSlugFromName(name) {
+  const first = (name || "").trim().toLowerCase().split(/\s+/)[0] || "";
+  return first.replace(/[^a-z0-9-]/g, "");
+}
+
+function isValidSlug(slug) {
+  return /^[a-z0-9][a-z0-9-]*$/.test(slug);
+}
+
+async function slugIsAvailable(photosBase, slug) {
+  // We don't have direct GitHub access for file existence at this point, so
+  // we probe the published URL. 404 = available, 200 = taken.
+  try {
+    const resp = await fetch(photosBase + slug + ".enc.json", {
+      method: "GET",
+      cache: "no-store"
+    });
+    if (resp.status === 404) return true;
+    if (resp.ok) return false;
+    // Other status — treat as inconclusive but lean "available" so the
+    // commit attempt will be the authoritative check.
+    return true;
+  } catch (e) {
+    return true;
+  }
+}
+
+function renderCreateFamily(opts) {
+  opts = opts || {};
+  const screen = $("login-screen");
+  clear(screen);
+
+  const card = el("div", { class: "login-card" });
+  card.appendChild(el("h1", { text: "Create a new family" }));
+  if (opts.noticeText) {
+    card.appendChild(el("p", { class: "login-sub", text: opts.noticeText }));
+  } else {
+    card.appendChild(el("p", { class: "login-sub",
+      text: "Set up a brand-new encrypted family from scratch." }));
+  }
+
+  // Track whether the admin has manually edited the slug — once they have,
+  // stop auto-deriving it from the name.
+  let slugManuallyEdited = !!opts.slugPrefill;
+
+  // Display name
+  const nameField = el("div", { class: "field" });
+  nameField.appendChild(el("label", { text: "Family display name", attrs: { for: "f-display" } }));
+  const nameInput = el("input", {
+    type: "text",
+    id: "f-display",
+    autocomplete: "off",
+    placeholder: "The Frist Family Reunion 2026"
+  });
+  nameField.appendChild(nameInput);
+  card.appendChild(nameField);
+
+  // Slug
+  const slugField = el("div", { class: "field" });
+  slugField.appendChild(el("label", { text: "Family slug", attrs: { for: "f-slug" } }));
+  const slugInput = el("input", {
+    type: "text",
+    id: "f-slug",
+    autocomplete: "off",
+    spellcheck: "false",
+    placeholder: "frist",
+    value: opts.slugPrefill || ""
+  });
+  slugInput.addEventListener("input", () => { slugManuallyEdited = true; });
+  slugField.appendChild(slugInput);
+  slugField.appendChild(el("p", { class: "field-hint",
+    text: "Lowercase letters, numbers, hyphens. Used as the filename." }));
+  card.appendChild(slugField);
+
+  nameInput.addEventListener("input", e => {
+    if (!slugManuallyEdited) {
+      slugInput.value = deriveSlugFromName(e.target.value);
+    }
+  });
+
+  // Password
+  const pwField = el("div", { class: "field" });
+  pwField.appendChild(el("label", { text: "Family password", attrs: { for: "f-pw" } }));
+  const pwInput = el("input", {
+    type: "password",
+    id: "f-pw",
+    autocomplete: "new-password",
+    value: opts.passwordPrefill || ""
+  });
+  pwField.appendChild(pwInput);
+  card.appendChild(pwField);
+
+  const pw2Field = el("div", { class: "field" });
+  pw2Field.appendChild(el("label", { text: "Confirm password", attrs: { for: "f-pw2" } }));
+  const pw2Input = el("input", {
+    type: "password",
+    id: "f-pw2",
+    autocomplete: "new-password",
+    value: opts.passwordPrefill || ""
+  });
+  pw2Field.appendChild(pw2Input);
+  card.appendChild(pw2Field);
+
+  // Repo
+  const stored = loadStoredRepo();
+  const source = resolveDataSource(adminState.dataParam);
+  const fromData = source && source.ghOwner && source.ghRepo
+    ? `${source.ghOwner}/${source.ghRepo}` : null;
+  const inferred = inferRepoFromLocation();
+  const fromInferred = inferred ? `${inferred.owner}/${inferred.repo}` : null;
+  const repoField = el("div", { class: "field" });
+  repoField.appendChild(el("label", { text: "GitHub repo (owner/repo)", attrs: { for: "f-repo" } }));
+  const repoInput = el("input", {
+    type: "text",
+    id: "f-repo",
+    autocomplete: "off",
+    spellcheck: "false",
+    value: opts.repoPrefill || stored || fromData || fromInferred || ""
+  });
+  repoField.appendChild(repoInput);
+  card.appendChild(repoField);
+
+  // PAT
+  let storedPat = "";
+  try { storedPat = localStorage.getItem(PAT_STORAGE_KEY) || ""; } catch (e) { /* ignore */ }
+  const patField = el("div", { class: "field" });
+  patField.appendChild(el("label", { text: "GitHub personal access token", attrs: { for: "f-pat" } }));
+  const patInput = el("input", {
+    type: "password",
+    id: "f-pat",
+    autocomplete: "off",
+    value: opts.patPrefill || storedPat
+  });
+  patField.appendChild(patInput);
+  card.appendChild(patField);
+
+  const error = el("p", { class: "error-text", id: "create-error" });
+  card.appendChild(error);
+
+  const create = el("button", {
+    type: "button",
+    class: "btn-primary",
+    text: "Create family",
+    style: "width:100%;margin-top:8px;",
+    onclick: () => attemptCreateFamily({
+      nameInput, slugInput, pwInput, pw2Input, repoInput, patInput, error, btn: create
+    })
+  });
+  card.appendChild(create);
+
+  card.appendChild(el("button", {
+    type: "button",
+    class: "btn-secondary",
+    text: "Cancel",
+    style: "width:100%;margin-top:10px;",
+    onclick: () => renderLogin()
+  }));
+
+  screen.appendChild(card);
+  showScreen("login");
+  setTimeout(() => nameInput.focus(), 50);
+}
+
+async function attemptCreateFamily(refs) {
+  const { nameInput, slugInput, pwInput, pw2Input, repoInput, patInput, error, btn } = refs;
+  error.textContent = "";
+
+  const displayName = nameInput.value.trim();
+  const slug = slugInput.value.trim();
+  const pw = pwInput.value;
+  const pw2 = pw2Input.value;
+  const repoVal = repoInput.value.trim();
+  const pat = patInput.value.trim();
+
+  if (!displayName) {
+    error.textContent = "Enter a family display name.";
+    nameInput.focus();
+    return;
+  }
+  if (!slug) {
+    error.textContent = "Enter a slug.";
+    slugInput.focus();
+    return;
+  }
+  if (!isValidSlug(slug)) {
+    error.textContent = "Slug must be lowercase letters, numbers, and hyphens only.";
+    slugInput.focus();
+    return;
+  }
+  if (!pw) {
+    error.textContent = "Enter a family password.";
+    pwInput.focus();
+    return;
+  }
+  if (pw !== pw2) {
+    error.textContent = "Passwords don't match.";
+    pw2Input.focus();
+    return;
+  }
+  const repoMatch = repoVal.match(/^([\w.-]+)\/([\w.-]+)$/);
+  if (!repoMatch) {
+    error.textContent = "GitHub repo must be in 'owner/repo' form.";
+    repoInput.focus();
+    return;
+  }
+  if (!pat) {
+    error.textContent = "Enter a GitHub personal access token.";
+    patInput.focus();
+    return;
+  }
+
+  // Determine photosBase — either from existing ?data= or by inferring from the
+  // repo (assumes GitHub Pages at <owner>.github.io/<repo>/).
+  let photosBase = adminState.photosBase;
+  if (!photosBase) {
+    photosBase = `https://${repoMatch[1]}.github.io/${repoMatch[2]}/`;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Checking…";
+  showOverlay("Checking slug availability…");
+
+  try {
+    const available = await slugIsAvailable(photosBase, slug);
+    if (!available) {
+      hideOverlay();
+      btn.disabled = false;
+      btn.textContent = "Create family";
+      error.textContent = "A family with this slug already exists — pick a different slug.";
+      slugInput.focus();
+      return;
+    }
+
+    // Validate PAT
+    showOverlay("Checking token…");
+    adminState.pat = pat;
+    adminState.owner = repoMatch[1];
+    adminState.repo = repoMatch[2];
+    let repoMeta;
+    try {
+      repoMeta = await validatePat(adminState.owner, adminState.repo);
+    } catch (e) {
+      adminState.pat = null;
+      hideOverlay();
+      btn.disabled = false;
+      btn.textContent = "Create family";
+      if (e.status === 401 || e.status === 403 || e.status === 404) {
+        error.textContent = "Token invalid or doesn't have access to this repo.";
+      } else {
+        error.textContent = e.message;
+      }
+      return;
+    }
+    adminState.defaultBranch = repoMeta.default_branch || "main";
+
+    // Persist what we can
+    try {
+      localStorage.setItem(PAT_STORAGE_KEY, pat);
+      saveStoredRepo(`${adminState.owner}/${adminState.repo}`);
+    } catch (e) { /* ignore */ }
+
+    // Set up state for a new, unpublished family
+    adminState.photosBase = photosBase;
+    adminState.familySlug = slug;
+    adminState.encUrl = photosBase + slug + ".enc.json";
+    adminState.familyName = displayName;
+    adminState.ancestor = "";
+    adminState.people = [];
+    adminState.password = pw;
+    adminState.envelope = null; // no prior envelope
+    adminState.isNewFamily = true;
+    adminState.changes = [];
+    adminState.pendingPhotos = new Map();
+
+    hideOverlay();
+    toast("Family ready — add people and tap Save & Publish.", "success");
+    renderPeopleList();
+  } catch (e) {
+    hideOverlay();
+    btn.disabled = false;
+    btn.textContent = "Create family";
+    error.textContent = e.message || String(e);
+  }
+}
+
 // ---------- People list screen ----------
 
 function renderPeopleList() {
@@ -653,15 +970,21 @@ function renderPeopleList() {
   title.appendChild(sub);
   top.appendChild(title);
 
+  const pendingCount = adminState.changes.length;
   const publish = el("button", {
     type: "button",
     class: "pill-btn",
-    text: hasUnsavedChanges() ? `Save & Publish (${adminState.changes.length})` : "Save & Publish",
+    text: pendingCount > 0 ? `Save & Publish (${pendingCount})` : "Save & Publish",
     disabled: !hasUnsavedChanges(),
     onclick: () => publishChanges()
   });
   top.appendChild(publish);
   screen.appendChild(top);
+
+  if (adminState.isNewFamily) {
+    screen.appendChild(el("div", { class: "new-family-banner",
+      text: "New family — not yet published" }));
+  }
 
   // List
   const scroll = el("div", { class: "people-list-scroll" });
@@ -993,6 +1316,10 @@ function savePersonFromDraft() {
       _localPhotoUrl: draft._localPhotoUrl
     });
     recordChange("add", draft.name.trim());
+    // First person added to a brand-new family becomes the ancestor by default.
+    if (adminState.isNewFamily && !adminState.ancestor) {
+      adminState.ancestor = id;
+    }
   }
 
   adminState.draft = null;
@@ -1143,6 +1470,9 @@ function pickerAddRaw(name) {
 // ---------- Save & publish ----------
 
 function buildCommitMessage() {
+  if (adminState.isNewFamily) {
+    return `Create new family: ${adminState.familyName}`;
+  }
   const adds = adminState.changes.filter(c => c.type === "add");
   const edits = adminState.changes.filter(c => c.type === "edit");
   const deletes = adminState.changes.filter(c => c.type === "delete");
@@ -1267,6 +1597,7 @@ async function publishChanges() {
 
     // Success — clear pending state, refresh in-memory people to a clean baseline
     adminState.changes = [];
+    adminState.isNewFamily = false;
     adminState.pendingPhotos.forEach((_, path) => { /* keep blobs referenced for thumbs */ });
     // Mark everyone as clean
     adminState.people = adminState.people
