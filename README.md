@@ -191,10 +191,89 @@ http://localhost:8000/?data=http://localhost:8000/test-data/family1
 The folder must contain `family1.enc.json` (and a `family1/` photos folder
 if your plaintext references photos there).
 
+## Admin tool
+
+`admin.html` is a mobile-friendly tool for editing the family data directly
+from a phone. Family members text the admin photos and details; the admin
+opens the tool and pushes the updated, encrypted data back to the repo in
+a single commit.
+
+### One-time setup: create a GitHub Personal Access Token
+
+The admin tool commits to the data repo via the GitHub API, so it needs a
+token with write access.
+
+1. On GitHub: **Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token**.
+2. **Resource owner**: your GitHub username (or org, if the repo belongs to
+   one).
+3. **Repository access**: "Only select repositories", and pick **only the
+   data repo** (e.g. `reunion-data`). Don't grant access to anything else.
+4. **Repository permissions** → **Contents: Read and write**. Leave everything
+   else as "No access".
+5. Set an expiration that suits you (90 days is reasonable; you can
+   regenerate later).
+6. Generate and copy the token. It starts with `github_pat_…`.
+
+The token only ever travels to `api.github.com`. The admin tool stores it
+in `localStorage` on the admin's device after the first successful login,
+so the admin doesn't have to retype it. A **Forget token** link on the
+login screen clears it.
+
+### Using the admin tool
+
+1. Open `https://<your-domain>/family-flashcards/admin.html?data=<same data
+   param you'd use for the main app>`.
+2. On first launch:
+   - Enter the family password.
+   - Enter the GitHub repo (e.g. `mikecapito/reunion-data`) — pre-filled when
+     it can be inferred from the URL.
+   - Paste the PAT.
+   - Tap **Unlock**.
+3. You'll land on the people list. Tap a row to edit, or the **+** button
+   to add a new person.
+4. On the edit screen:
+   - Tap **Choose photo** to pick from your camera roll or take a new
+     photo. The tool resizes to 600×600 JPEG client-side — no big files
+     get uploaded.
+   - Fill in name, birthday, fun fact.
+   - Expand a relationship section to add grandparents/parents/etc. The
+     picker lets you pick from existing family members (linked) or type a
+     free-text name for someone not in the system.
+   - Tap **Save** to return to the list. The change is staged but not yet
+     published.
+5. When you're done with a batch of edits, tap **Save & Publish** at the
+   top of the people list. The tool re-encrypts the whole file and commits
+   it back to the repo along with any new photos in a single atomic commit.
+
+### Notes on photos
+
+- Photos are saved to `photos/<family>/<random-hex>.jpg` within the data
+  repo and referenced by that path from the encrypted blob.
+- Old photos are not deleted when a person's photo is replaced — they stay
+  in the repo's history. Cleanup is a future feature.
+- HEIC photos from iOS work in Safari on modern iPhones (Safari decodes
+  them transparently into the canvas). On other browsers, the tool shows
+  a clear error and you can re-export as JPEG.
+
+### When something goes wrong
+
+- "Token invalid or doesn't have access to this repo" → Either the PAT is
+  expired, mistyped, or doesn't include this repo in its scope. Regenerate
+  a fine-grained token with **Contents: read/write** on the data repo.
+- A publish fails halfway → All your pending changes stay in memory. Fix
+  the underlying issue (most often a stale tab where another commit
+  landed in the meantime) and try **Save & Publish** again.
+- The family password is never written to localStorage. If you refresh
+  the page, you'll need to enter it again. The PAT *is* stored so you
+  don't have to keep retyping it.
+
 ## Files
 
-- `index.html` — entry point
-- `app.js` — all app logic (data loading, decrypt, screens)
-- `styles.css` — styles
-- `encrypt.html` — standalone offline encryption tool
+- `index.html` — main app entry point
+- `app.js` — main app logic (data loading, decrypt, screens)
+- `styles.css` — main app styles
+- `admin.html`, `admin.js`, `admin.css` — admin tool
+- `encrypt.html` — standalone offline encryption tool (for initial setup
+  or emergency re-encryption)
 - `robots.txt` — keep crawlers out of the app domain
