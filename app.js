@@ -252,6 +252,11 @@ function renderPassword() {
   error.id = "password-error";
   container.appendChild(error);
 
+  const version = document.createElement("p");
+  version.className = "version-line";
+  version.textContent = "v " + (window.APP_VERSION || "dev");
+  container.appendChild(version);
+
   screen.appendChild(container);
 
   let busy = false;

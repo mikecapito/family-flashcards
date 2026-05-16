@@ -292,6 +292,16 @@ input.shake {
   margin: 0 0 20px;
 }
 
+.login-card .version-line {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  letter-spacing: 0.04em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 .token-row {
   display: flex;
   align-items: center;

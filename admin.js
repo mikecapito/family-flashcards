@@ -561,6 +561,11 @@ function renderLogin() {
     });
   });
 
+  card.appendChild(el("p", {
+    class: "version-line",
+    text: "v " + (window.APP_VERSION || "dev")
+  }));
+
   screen.appendChild(card);
   showScreen("login");
   setTimeout(() => pwInput.focus(), 50);
