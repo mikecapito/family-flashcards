@@ -1,12 +1,11 @@
 // ---------- App state ----------
-// dataState holds everything loaded from the data repo. familyName comes
-// from plaintext config.json; ancestor + people are decrypted from
-// data.enc.json after the user enters the password.
+// dataState holds everything loaded from the data repo. familyName +
+// (optional) groupPhoto + people come from the decrypted payload.
 const dataState = {
   baseUrl: null,
   familyName: null,
   envelope: null,
-  ancestor: null,
+  groupPhoto: null,
   people: []
 };
 
@@ -40,9 +39,7 @@ function shuffle(arr) {
 }
 
 function buildDeck() {
-  const ancestor = getPersonById(dataState.ancestor);
-  const others = dataState.people.filter(p => p.id !== dataState.ancestor);
-  return ancestor ? [ancestor, ...shuffle(others)] : shuffle(others);
+  return shuffle(dataState.people);
 }
 
 function calcAge(birthday) {
@@ -280,7 +277,6 @@ function renderPassword() {
       if (
         !decrypted ||
         typeof decrypted.familyName !== "string" ||
-        typeof decrypted.ancestor !== "string" ||
         !Array.isArray(decrypted.people)
       ) {
         // Decrypt succeeded but plaintext is malformed — treat as corrupt data.
@@ -289,7 +285,8 @@ function renderPassword() {
       }
 
       dataState.familyName = decrypted.familyName;
-      dataState.ancestor = decrypted.ancestor;
+      dataState.groupPhoto = typeof decrypted.groupPhoto === "string" && decrypted.groupPhoto
+        ? decrypted.groupPhoto : null;
       dataState.people = decrypted.people;
 
       input.value = "";
@@ -329,26 +326,14 @@ function renderHome() {
   heading.textContent = dataState.familyName || "";
   container.appendChild(heading);
 
-  const ancestor = getPersonById(dataState.ancestor);
-
-  if (ancestor) {
-    const feature = document.createElement("button");
-    feature.type = "button";
-    feature.className = "ancestor-feature";
-    feature.setAttribute("aria-label", `Open ${ancestor.name}'s card`);
-
+  if (dataState.groupPhoto) {
+    const feature = document.createElement("div");
+    feature.className = "group-photo-feature";
     const photo = document.createElement("img");
-    photo.className = "ancestor-photo";
-    photo.src = photoUrl(ancestor.photo);
-    photo.alt = ancestor.name;
+    photo.className = "group-photo";
+    photo.src = photoUrl(dataState.groupPhoto);
+    photo.alt = dataState.familyName || "";
     feature.appendChild(photo);
-
-    const ancestorName = document.createElement("div");
-    ancestorName.className = "ancestor-name";
-    ancestorName.textContent = ancestor.name;
-    feature.appendChild(ancestorName);
-
-    feature.addEventListener("click", () => renderBrowse());
     container.appendChild(feature);
   }
 

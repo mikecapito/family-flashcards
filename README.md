@@ -1,10 +1,15 @@
 # Family Flashcards
 
-A mobile-first web app that helps extended family members learn each other's
-names and faces before a reunion. The app code is public; family data lives in
-a separate repo and is encrypted at rest, so the data repo can also be public
-without exposing names, photos, or relationships to anyone who doesn't have
-the password.
+A mobile-first web app that helps a group — an extended family, a church
+congregation, a new school year — learn each other's names and faces. The
+app code is public; the per-group data lives in a separate repo and is
+encrypted at rest, so the data repo can also be public without exposing
+names, photos, or relationships to anyone who doesn't have the password.
+
+It's nominally a "family" app — the data model uses words like *family*,
+*ancestor*, and *relatives* — but nothing about the structure prevents
+using it for any other kind of group. Just ignore the relationship fields
+if they don't apply.
 
 Live app: `https://<your-domain>/family-flashcards/?data=<data-source>`
 
@@ -13,8 +18,9 @@ Live app: `https://<your-domain>/family-flashcards/?data=<data-source>`
 The app fetches one file from a data repo:
 
 - `<family>.enc.json` — AES-256-GCM ciphertext of the family payload
-  (`familyName` + `ancestor` ID + `people` array). The encryption key is
-  derived from the family password via PBKDF2 (SHA-256, 600,000 iterations).
+  (`familyName` + an optional `groupPhoto` path + `people` array). The
+  encryption key is derived from the family password via PBKDF2
+  (SHA-256, 600,000 iterations).
 
 The password is held in memory only during the decrypt attempt. It's never
 written to local storage, session storage, cookies, or anywhere else. Refresh
@@ -132,12 +138,14 @@ login screen clears it.
      before.
 4. Tap **Create family**. You'll land on an empty people list with a
    "New family — not yet published" banner.
-5. Add the first person via the **+** button — they become the ancestor
-   shown on the home screen by default.
-6. Add as many more people as you like, then tap **Save & Publish**. The
-   tool re-encrypts the payload, generates a fresh `<slug>.enc.json`,
-   uploads any new photos, and commits everything in one atomic commit
-   labeled "Create new family: <Display Name>".
+5. Optionally tap **Choose image** in the "Welcome image" section to
+   upload a group photo — it's what shows on the home screen above the
+   Browse and Quiz buttons. The tool crops to 3:2 landscape.
+6. Add people via the **+** button.
+7. When you're done, tap **Save & Publish**. The tool re-encrypts the
+   payload, generates a fresh `<slug>.enc.json`, uploads any new photos,
+   and commits everything in one atomic commit labeled "Create new
+   family: <Display Name>".
 
 **Save the URL and password somewhere accessible** (a password manager
 works well). The URL is `https://<your-domain>/family-flashcards/?data=<owner>/<repo>/<slug>`.

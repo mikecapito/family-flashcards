@@ -352,37 +352,21 @@ html, body {
   line-height: 1.2;
 }
 
-.ancestor-feature {
+.group-photo-feature {
+  width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+  justify-content: center;
 }
 
-.ancestor-feature:active .ancestor-photo {
-  transform: scale(0.97);
-}
-
-.ancestor-photo {
-  width: min(50vw, 220px);
-  height: min(50vw, 220px);
+.group-photo {
+  width: 100%;
+  max-width: min(85vw, 360px);
+  aspect-ratio: 3 / 2;
   object-fit: cover;
-  border-radius: 50%;
+  border-radius: 16px;
   border: 4px solid var(--card-bg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  transition: transform 120ms ease;
-}
-
-.ancestor-name {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--text);
-  text-align: center;
+  display: block;
 }
 
 .mode-buttons {

@@ -28,7 +28,9 @@ const adminState = {
 
   // Decrypted payload
   familyName: null,
-  ancestor: null,
+  ancestor: null,           // legacy field, preserved on edit but no longer used
+  groupPhoto: null,         // welcome image shown on the home screen
+  groupPhotoLocalUrl: null, // object URL for the locally selected blob (if pending)
   people: [],
 
   // Drafts and pending changes
@@ -191,25 +193,47 @@ function loadImageFromFile(file) {
   });
 }
 
-async function standardizePhoto(file) {
+async function standardizeImage(file, targetW, targetH) {
   const img = await loadImageFromFile(file);
-  const side = Math.min(img.naturalWidth, img.naturalHeight);
-  if (!side) throw new Error("Couldn't read this photo — try JPEG or PNG.");
-  const sx = (img.naturalWidth - side) / 2;
-  const sy = (img.naturalHeight - side) / 2;
+  if (!img.naturalWidth || !img.naturalHeight) {
+    throw new Error("Couldn't read this photo — try JPEG or PNG.");
+  }
+  const targetAspect = targetW / targetH;
+  const srcAspect = img.naturalWidth / img.naturalHeight;
+  let sx, sy, sw, sh;
+  if (srcAspect > targetAspect) {
+    sh = img.naturalHeight;
+    sw = sh * targetAspect;
+    sx = (img.naturalWidth - sw) / 2;
+    sy = 0;
+  } else {
+    sw = img.naturalWidth;
+    sh = sw / targetAspect;
+    sx = 0;
+    sy = (img.naturalHeight - sh) / 2;
+  }
   const canvas = document.createElement("canvas");
-  canvas.width = 600;
-  canvas.height = 600;
+  canvas.width = targetW;
+  canvas.height = targetH;
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(img, sx, sy, side, side, 0, 0, 600, 600);
-  const blob = await new Promise((resolve, reject) => {
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+  return new Promise((resolve, reject) => {
     canvas.toBlob(
       b => b ? resolve(b) : reject(new Error("Couldn't encode photo as JPEG.")),
       "image/jpeg",
       0.85
     );
   });
-  return blob;
+}
+
+async function standardizePhoto(file) {
+  // 600x600 square crop for person portraits.
+  return standardizeImage(file, 600, 600);
+}
+
+async function standardizeGroupPhoto(file) {
+  // 3:2 landscape for group/welcome photos.
+  return standardizeImage(file, 1200, 800);
 }
 
 function randomPhotoFilename() {
@@ -655,7 +679,10 @@ async function attemptLogin(pwInput, repoInput, patInput, errorEl, btn) {
     adminState.envelope = envelope;
     adminState.password = pw;
     adminState.familyName = decrypted.familyName;
-    adminState.ancestor = decrypted.ancestor;
+    adminState.ancestor = decrypted.ancestor || null;
+    adminState.groupPhoto = typeof decrypted.groupPhoto === "string" && decrypted.groupPhoto
+      ? decrypted.groupPhoto : null;
+    adminState.groupPhotoLocalUrl = null;
     adminState.people = decrypted.people.map(p => Object.assign({ _isNew: false }, p));
 
     hideOverlay();
@@ -936,7 +963,9 @@ async function attemptCreateFamily(refs) {
     adminState.familySlug = slug;
     adminState.encUrl = photosBase + slug + ".enc.json";
     adminState.familyName = displayName;
-    adminState.ancestor = "";
+    adminState.ancestor = null;
+    adminState.groupPhoto = null;
+    adminState.groupPhotoLocalUrl = null;
     adminState.people = [];
     adminState.password = pw;
     adminState.envelope = null; // no prior envelope
@@ -986,6 +1015,9 @@ function renderPeopleList() {
       text: "New family — not yet published" }));
   }
 
+  // Welcome image section
+  screen.appendChild(renderGroupPhotoSection());
+
   // List
   const scroll = el("div", { class: "people-list-scroll" });
   const sorted = adminState.people.slice().sort((a, b) =>
@@ -1012,6 +1044,88 @@ function renderPeopleList() {
   }));
 
   showScreen("people");
+}
+
+function renderGroupPhotoSection() {
+  const section = el("div", { class: "group-section" });
+  section.appendChild(el("div", { class: "group-section-label", text: "Welcome image" }));
+
+  const preview = el("div", { class: "group-preview" });
+  const src = adminState.groupPhotoLocalUrl
+    || (adminState.groupPhoto ? photoUrl(adminState.groupPhoto) : null);
+  if (src) {
+    preview.appendChild(el("img", { src, alt: "Welcome image" }));
+  } else {
+    preview.appendChild(el("div", { class: "group-placeholder", text: "🌅" }));
+  }
+  section.appendChild(preview);
+
+  const fileInput = el("input", {
+    type: "file",
+    accept: "image/*",
+    style: "display:none",
+    onchange: async e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        showOverlay("Processing image…");
+        const blob = await standardizeGroupPhoto(file);
+        // Drop any previously pending group blob.
+        clearPendingGroupPhoto();
+        const filename = randomPhotoFilename();
+        const path = newPhotoPath(filename);
+        adminState.pendingPhotos.set(path, blob);
+        adminState.groupPhoto = path;
+        adminState.groupPhotoLocalUrl = URL.createObjectURL(blob);
+        recordChange("edit", "welcome image");
+        hideOverlay();
+        renderPeopleList();
+      } catch (err) {
+        hideOverlay();
+        toast(err.message || "Couldn't process image.", "error");
+      }
+      e.target.value = "";
+    }
+  });
+  section.appendChild(fileInput);
+
+  const actions = el("div", { class: "group-actions" });
+  actions.appendChild(el("button", {
+    type: "button",
+    class: "btn-secondary",
+    text: src ? "Replace image" : "Choose image",
+    onclick: () => fileInput.click()
+  }));
+  if (src) {
+    actions.appendChild(el("button", {
+      type: "button",
+      class: "btn-danger",
+      text: "Remove",
+      onclick: () => removeGroupPhoto()
+    }));
+  }
+  section.appendChild(actions);
+
+  return section;
+}
+
+function clearPendingGroupPhoto() {
+  // If there's a pending blob queued for the group photo, discard it.
+  if (adminState.groupPhotoLocalUrl) {
+    URL.revokeObjectURL(adminState.groupPhotoLocalUrl);
+    adminState.groupPhotoLocalUrl = null;
+  }
+  if (adminState.groupPhoto && adminState.pendingPhotos.has(adminState.groupPhoto)) {
+    adminState.pendingPhotos.delete(adminState.groupPhoto);
+  }
+}
+
+function removeGroupPhoto() {
+  if (!confirm("Remove the welcome image? This takes effect after Save & Publish.")) return;
+  clearPendingGroupPhoto();
+  adminState.groupPhoto = null;
+  recordChange("delete", "welcome image");
+  renderPeopleList();
 }
 
 function renderPersonRow(person) {
@@ -1316,10 +1430,6 @@ function savePersonFromDraft() {
       _localPhotoUrl: draft._localPhotoUrl
     });
     recordChange("add", draft.name.trim());
-    // First person added to a brand-new family becomes the ancestor by default.
-    if (adminState.isNewFamily && !adminState.ancestor) {
-      adminState.ancestor = id;
-    }
   }
 
   adminState.draft = null;
@@ -1501,11 +1611,13 @@ function buildPayloadForCommit() {
       syncedAt: p.syncedAt || null,
       family: p.family
     }));
-  return {
+  const payload = {
     familyName: adminState.familyName,
-    ancestor: adminState.ancestor,
     people
   };
+  if (adminState.ancestor) payload.ancestor = adminState.ancestor;
+  if (adminState.groupPhoto) payload.groupPhoto = adminState.groupPhoto;
+  return payload;
 }
 
 function encFilePath() {
@@ -1559,10 +1671,12 @@ async function publishChanges() {
       { path: encFilePath(), mode: "100644", type: "blob", sha: encBlob.sha }
     ];
 
-    // Only commit photos that are referenced by surviving (non-deleted) people.
+    // Only commit photos that are referenced by surviving (non-deleted) people
+    // or by the current group/welcome image.
     const referencedPaths = new Set(
       adminState.people.filter(p => !p._deleted).map(p => p.photo).filter(Boolean)
     );
+    if (adminState.groupPhoto) referencedPaths.add(adminState.groupPhoto);
     for (const [path, blob] of adminState.pendingPhotos.entries()) {
       if (!referencedPaths.has(path)) continue;
       const b64 = await blobToBase64(blob);
