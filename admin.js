@@ -496,9 +496,9 @@ function renderLogin() {
   card.appendChild(el("p", { class: "login-sub", text: family }));
 
   if (!adminState.dataParam) {
-    card.appendChild(el("p", { class: "error-text",
-      text: "No ?data= parameter in the URL. Open this page with a link like /admin.html?data=owner/repo/family." }));
-    screen.appendChild(card);
+    // No data location yet — drop the user straight into the
+    // create-a-new-family flow rather than dead-ending on an error.
+    renderCreateFamily({});
     return;
   }
 

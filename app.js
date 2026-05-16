@@ -830,7 +830,7 @@ function renderLanding() {
 
   const repoLabel = document.createElement("label");
   repoLabel.className = "field-label";
-  repoLabel.textContent = "Repo (owner/repo) or full URL";
+  repoLabel.textContent = "GitHub repo (owner/repo)";
   form.appendChild(repoLabel);
   const repoInput = document.createElement("input");
   repoInput.type = "text";
@@ -844,7 +844,7 @@ function renderLanding() {
 
   const slugLabel = document.createElement("label");
   slugLabel.className = "field-label";
-  slugLabel.textContent = "Family (optional, for multi-family repos)";
+  slugLabel.textContent = "Family name (leave blank for single-family repos)";
   form.appendChild(slugLabel);
   const slugInput = document.createElement("input");
   slugInput.type = "text";
@@ -899,15 +899,16 @@ function renderLanding() {
     error.textContent = "";
     status.textContent = "";
 
-    const dataParam = buildDataParam(repoInput.value, slugInput.value);
+    const slugTyped = slugInput.value.trim();
+    const dataParam = buildDataParam(repoInput.value, slugTyped);
     if (!dataParam) {
-      error.textContent = "Enter a repo (e.g. owner/repo) or a full URL.";
+      error.textContent = "Enter a repo (e.g. mikecapito/reunion-data).";
       repoInput.focus();
       return;
     }
     const source = resolveDataSource(dataParam);
     if (!source) {
-      error.textContent = "That doesn't look like a valid repo or URL.";
+      error.textContent = "That doesn't look like a valid repo.";
       return;
     }
 
@@ -919,9 +920,13 @@ function renderLanding() {
     try {
       const resp = await fetch(source.encUrl, { cache: "no-store" });
       if (!resp.ok) {
-        error.textContent = resp.status === 404
-          ? "No family data found at that location. Check the spelling, or use \"Create a new family →\" below."
-          : "Couldn't reach that location (HTTP " + resp.status + ").";
+        if (resp.status === 404 && !slugTyped) {
+          error.textContent = "No file found at that repo's root. If this is a multi-family repo, fill in the Family name above.";
+        } else if (resp.status === 404) {
+          error.textContent = "No family named \"" + slugTyped + "\" in that repo. Check the spelling, or use Create a new family below.";
+        } else {
+          error.textContent = "Couldn't reach that location (HTTP " + resp.status + ").";
+        }
         status.textContent = "";
         return;
       }
