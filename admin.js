@@ -88,6 +88,19 @@ function clear(node) {
   while (node.firstChild) node.removeChild(node.firstChild);
 }
 
+function formatBuildTime() {
+  const d = new Date(document.lastModified);
+  if (isNaN(d.getTime())) return "unknown";
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function forceCacheBustReload() {
+  const url = new URL(location.href);
+  url.searchParams.set("cb", Date.now().toString(36));
+  location.replace(url.toString());
+}
+
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   const target = $(`${name}-screen`);
@@ -561,10 +574,15 @@ function renderLogin() {
     });
   });
 
-  card.appendChild(el("p", {
-    class: "version-line",
-    text: "v " + (window.APP_VERSION || "dev")
+  const versionLine = el("p", { class: "version-line" });
+  versionLine.appendChild(document.createTextNode("built " + formatBuildTime() + " · "));
+  versionLine.appendChild(el("a", {
+    href: "#",
+    class: "refresh-link",
+    text: "force refresh",
+    onclick: e => { e.preventDefault(); forceCacheBustReload(); }
   }));
+  card.appendChild(versionLine);
 
   screen.appendChild(card);
   showScreen("login");

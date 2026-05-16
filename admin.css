@@ -302,6 +302,11 @@ input.shake {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+.login-card .refresh-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .token-row {
   display: flex;
   align-items: center;

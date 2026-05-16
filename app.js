@@ -29,6 +29,19 @@ function getPersonById(id) {
   return dataState.people.find(p => p.id === id);
 }
 
+function formatBuildTime() {
+  const d = new Date(document.lastModified);
+  if (isNaN(d.getTime())) return "unknown";
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function forceCacheBustReload() {
+  const url = new URL(location.href);
+  url.searchParams.set("cb", Date.now().toString(36));
+  location.replace(url.toString());
+}
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -254,7 +267,16 @@ function renderPassword() {
 
   const version = document.createElement("p");
   version.className = "version-line";
-  version.textContent = "v " + (window.APP_VERSION || "dev");
+  version.appendChild(document.createTextNode("built " + formatBuildTime() + " · "));
+  const refresh = document.createElement("a");
+  refresh.href = "#";
+  refresh.className = "refresh-link";
+  refresh.textContent = "force refresh";
+  refresh.addEventListener("click", e => {
+    e.preventDefault();
+    forceCacheBustReload();
+  });
+  version.appendChild(refresh);
   container.appendChild(version);
 
   screen.appendChild(container);
