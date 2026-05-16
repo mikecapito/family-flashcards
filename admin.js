@@ -602,6 +602,14 @@ function renderLogin() {
     card.appendChild(backRow);
   }
 
+  // Standalone decrypt tool (works even when admin won't load).
+  const decryptRow = el("p", { class: "back-to-app" });
+  decryptRow.appendChild(el("a", {
+    href: "decrypt.html",
+    text: "Decrypt a backup file →"
+  }));
+  card.appendChild(decryptRow);
+
   // Submit on Enter
   [pwInput, repoInput, patInput].forEach(input => {
     input.addEventListener("keydown", e => {
@@ -1082,9 +1090,15 @@ function renderPeopleList() {
   top.appendChild(publish);
   screen.appendChild(top);
 
-  // Exit-to-app link — handy after publishing to verify the result.
+  // Secondary actions: download a plaintext backup, exit to user view.
+  const exitRow = el("div", { class: "exit-row" });
+  exitRow.appendChild(el("a", {
+    class: "exit-link",
+    href: "#",
+    text: "Download backup (plaintext) ↓",
+    onclick: e => { e.preventDefault(); downloadBackup(); }
+  }));
   if (adminState.dataParam) {
-    const exitRow = el("div", { class: "exit-row" });
     exitRow.appendChild(el("a", {
       class: "exit-link",
       href: "./?data=" + encodeURIComponent(adminState.dataParam),
@@ -1097,8 +1111,8 @@ function renderPeopleList() {
         }
       }
     }));
-    screen.appendChild(exitRow);
   }
+  screen.appendChild(exitRow);
 
   if (adminState.isNewFamily) {
     screen.appendChild(el("div", { class: "new-family-banner",
@@ -1686,6 +1700,28 @@ function buildCommitMessage() {
   if (edits.length) parts.push(`edit ${edits.length}`);
   if (deletes.length) parts.push(`delete ${deletes.length}`);
   return "Admin update: " + parts.join(", ");
+}
+
+function downloadBackup() {
+  const payload = buildPayloadForCommit();
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const slug = adminState.familySlug || "family";
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${slug}-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const note = hasUnsavedChanges()
+    ? "Backup downloaded — includes unpublished changes."
+    : "Backup downloaded.";
+  toast(note, "success");
 }
 
 function buildPayloadForCommit() {

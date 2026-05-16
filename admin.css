@@ -310,6 +310,10 @@ input.shake {
 .exit-row {
   padding: 8px 16px 0;
   text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .exit-link {
