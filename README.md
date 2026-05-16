@@ -6,10 +6,10 @@ app code is public; the per-group data lives in a separate repo and is
 encrypted at rest, so the data repo can also be public without exposing
 names, photos, or relationships to anyone who doesn't have the password.
 
-It's nominally a "family" app — the data model uses words like *family*,
-*ancestor*, and *relatives* — but nothing about the structure prevents
-using it for any other kind of group. Just ignore the relationship fields
-if they don't apply.
+It's nominally a "family" app — the data model uses words like *family*
+and *relatives* — but nothing about the structure prevents using it for
+any other kind of group. Just ignore the relationship fields if they
+don't apply.
 
 Live app: `https://<your-domain>/family-flashcards/?data=<data-source>`
 
@@ -75,20 +75,20 @@ automatically as you create new families:
 
 ```
 reunion-data/
-  frist.enc.json
-  photos/frist/
+  smith.enc.json
+  photos/smith/
     a3f7c2.jpg
     b9e1d4.jpg
-  lecropane.enc.json
-  photos/lecropane/
+  garcia.enc.json
+  photos/garcia/
     f7e2a8.jpg
     c4b1d9.jpg
   robots.txt
 ```
 
 Share different links for different families:
-- `?data=mikecapito/reunion-data/frist`
-- `?data=mikecapito/reunion-data/lecropane`
+- `?data=mikecapito/reunion-data/smith`
+- `?data=mikecapito/reunion-data/garcia`
 
 Each family can have its own password — the password is just the decryption
 key for its specific `.enc.json`.
@@ -129,7 +129,7 @@ login screen clears it.
    exist yet and the tool will offer to create it).
 2. Tap **Create new family**.
 3. Fill in:
-   - **Family display name** — what's shown after decrypt (e.g. "The Frist
+   - **Family display name** — what's shown after decrypt (e.g. "Smith
      Family Reunion 2026").
    - **Family slug** — used as the filename. Auto-suggested from the
      display name; lowercase letters, numbers, and hyphens only.

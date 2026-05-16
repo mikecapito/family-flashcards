@@ -28,7 +28,6 @@ const adminState = {
 
   // Decrypted payload
   familyName: null,
-  ancestor: null,           // legacy field, preserved on edit but no longer used
   groupPhoto: null,         // welcome image shown on the home screen
   groupPhotoLocalUrl: null, // object URL for the locally selected blob (if pending)
   people: [],
@@ -747,7 +746,6 @@ async function attemptLogin(pwInput, repoInput, patInput, errorEl, btn) {
     adminState.envelope = envelope;
     adminState.password = pw;
     adminState.familyName = decrypted.familyName;
-    adminState.ancestor = decrypted.ancestor || null;
     adminState.groupPhoto = typeof decrypted.groupPhoto === "string" && decrypted.groupPhoto
       ? decrypted.groupPhoto : null;
     adminState.groupPhotoLocalUrl = null;
@@ -817,7 +815,7 @@ function renderCreateFamily(opts) {
     type: "text",
     id: "f-display",
     autocomplete: "off",
-    placeholder: "The Frist Family Reunion 2026"
+    placeholder: "Smith Family Reunion 2026"
   });
   nameField.appendChild(nameInput);
   card.appendChild(nameField);
@@ -830,7 +828,7 @@ function renderCreateFamily(opts) {
     id: "f-slug",
     autocomplete: "off",
     spellcheck: "false",
-    placeholder: "frist",
+    placeholder: "smith",
     value: opts.slugPrefill || ""
   });
   slugInput.addEventListener("input", () => { slugManuallyEdited = true; });
@@ -1042,7 +1040,6 @@ async function attemptCreateFamily(refs) {
     adminState.familySlug = slug;
     adminState.encUrl = photosBase + slug + ".enc.json";
     adminState.familyName = displayName;
-    adminState.ancestor = null;
     adminState.groupPhoto = null;
     adminState.groupPhotoLocalUrl = null;
     adminState.people = [];
@@ -1306,7 +1303,7 @@ function renderPersonEditor() {
     type: "text",
     id: "f-name",
     value: draft.name,
-    placeholder: "e.g. Eleanor Frist",
+    placeholder: "e.g. Eleanor Smith",
     oninput: e => {
       draft.name = e.target.value;
       saveBtn.disabled = !draft.name.trim();
@@ -1740,7 +1737,6 @@ function buildPayloadForCommit() {
     familyName: adminState.familyName,
     people
   };
-  if (adminState.ancestor) payload.ancestor = adminState.ancestor;
   if (adminState.groupPhoto) payload.groupPhoto = adminState.groupPhoto;
   return payload;
 }
