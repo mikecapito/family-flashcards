@@ -7,13 +7,32 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>Family Flashcards</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"
-      defer
-    ></script>
-    <script src="app.js" defer></script>
+    <script>
+      // Asset cache-bust bootstrap. If the page URL has ?cb=..., propagate it
+      // to local asset URLs so the browser fetches fresh copies instead of
+      // serving cached app.js / styles.css. Without this, "force refresh"
+      // only revalidates index.html — the assets stay stale.
+      (function () {
+        var cb = new URLSearchParams(location.search).get("cb");
+        var suf = cb ? "?cb=" + cb : "";
+        var l = document.createElement("link");
+        l.rel = "stylesheet";
+        l.href = "styles.css" + suf;
+        document.head.appendChild(l);
+        var h = document.createElement("script");
+        h.src = "https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js";
+        h.defer = true;
+        document.head.appendChild(h);
+        var s = document.createElement("script");
+        s.src = "app.js" + suf;
+        s.defer = true;
+        document.head.appendChild(s);
+      })();
+    </script>
   </head>
   <body>
     <div id="app">

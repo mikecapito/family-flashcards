@@ -307,6 +307,21 @@ html, body {
   font-weight: 500;
 }
 
+.admin-link-row {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 14px;
+}
+
+.admin-link-row a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.admin-link-row a:hover {
+  text-decoration: underline;
+}
+
 .version-line {
   margin: 24px 0 0;
   font-size: 11px;

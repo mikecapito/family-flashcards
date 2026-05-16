@@ -37,9 +37,22 @@ function formatBuildTime() {
 }
 
 function forceCacheBustReload() {
-  const url = new URL(location.href);
-  url.searchParams.set("cb", Date.now().toString(36));
-  location.replace(url.toString());
+  // Best-effort: nuke any Cache Storage entries (no service worker today, but
+  // free safety net). Then reload at a new ?cb=... so index.html and — via
+  // the bootstrap in <head> — all local assets get fetched fresh.
+  const go = () => {
+    const url = new URL(location.href);
+    url.searchParams.set("cb", Date.now().toString(36));
+    location.replace(url.toString());
+  };
+  if (window.caches && caches.keys) {
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .catch(() => {})
+      .then(go);
+  } else {
+    go();
+  }
 }
 
 function shuffle(arr) {
@@ -264,6 +277,17 @@ function renderPassword() {
   error.className = "error-message";
   error.id = "password-error";
   container.appendChild(error);
+
+  const dataParam = new URLSearchParams(window.location.search).get("data");
+  if (dataParam) {
+    const adminRow = document.createElement("p");
+    adminRow.className = "admin-link-row";
+    const adminLink = document.createElement("a");
+    adminLink.href = "admin.html?data=" + encodeURIComponent(dataParam);
+    adminLink.textContent = "Admin →";
+    adminRow.appendChild(adminLink);
+    container.appendChild(adminRow);
+  }
 
   const version = document.createElement("p");
   version.className = "version-line";

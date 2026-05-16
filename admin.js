@@ -96,9 +96,19 @@ function formatBuildTime() {
 }
 
 function forceCacheBustReload() {
-  const url = new URL(location.href);
-  url.searchParams.set("cb", Date.now().toString(36));
-  location.replace(url.toString());
+  const go = () => {
+    const url = new URL(location.href);
+    url.searchParams.set("cb", Date.now().toString(36));
+    location.replace(url.toString());
+  };
+  if (window.caches && caches.keys) {
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .catch(() => {})
+      .then(go);
+  } else {
+    go();
+  }
 }
 
 function showScreen(name) {
