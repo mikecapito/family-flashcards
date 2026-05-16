@@ -564,6 +564,17 @@ function renderLogin() {
     })
   }));
 
+  // Back to the regular family app (read-only flashcards view)
+  if (adminState.dataParam) {
+    const appHref = "./?data=" + encodeURIComponent(adminState.dataParam);
+    const backRow = el("p", { class: "back-to-app" });
+    backRow.appendChild(el("a", {
+      href: appHref,
+      text: "← Back to family app"
+    }));
+    card.appendChild(backRow);
+  }
+
   // Submit on Enter
   [pwInput, repoInput, patInput].forEach(input => {
     input.addEventListener("keydown", e => {

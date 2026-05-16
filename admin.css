@@ -292,6 +292,21 @@ input.shake {
   margin: 0 0 20px;
 }
 
+.login-card .back-to-app {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 14px;
+}
+
+.login-card .back-to-app a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.login-card .back-to-app a:hover {
+  text-decoration: underline;
+}
+
 .login-card .version-line {
   margin: 18px 0 0;
   text-align: center;
