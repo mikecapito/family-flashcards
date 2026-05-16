@@ -711,7 +711,6 @@ async function attemptLogin(pwInput, repoInput, patInput, errorEl, btn) {
       return;
     }
     if (typeof decrypted.familyName !== "string" ||
-        typeof decrypted.ancestor !== "string" ||
         !Array.isArray(decrypted.people)) {
       throw new Error("Decrypted data is missing expected fields.");
     }
