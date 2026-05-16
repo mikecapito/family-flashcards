@@ -795,6 +795,159 @@ function renderQuizEnd() {
 
 // ---------- Error screen ----------
 
+const LANDING_LAST_KEY = "family-flashcards.landing.last";
+
+function buildDataParam(repo, slug) {
+  const r = (repo || "").trim().replace(/\/+$/, "");
+  const s = (slug || "").trim();
+  if (!r) return "";
+  return s ? r + "/" + s : r;
+}
+
+function renderLanding() {
+  const screen = document.getElementById("landing-screen");
+  screen.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "landing-container";
+
+  const heading = document.createElement("h1");
+  heading.className = "family-name";
+  heading.textContent = "Family Flashcards";
+  container.appendChild(heading);
+
+  const sub = document.createElement("p");
+  sub.className = "subheading";
+  sub.textContent = "Enter the location of your family's data to get started.";
+  container.appendChild(sub);
+
+  const form = document.createElement("form");
+  form.className = "password-form";
+
+  let last = null;
+  try { last = JSON.parse(localStorage.getItem(LANDING_LAST_KEY) || "null"); }
+  catch (e) { /* ignore */ }
+
+  const repoLabel = document.createElement("label");
+  repoLabel.className = "field-label";
+  repoLabel.textContent = "Repo (owner/repo) or full URL";
+  form.appendChild(repoLabel);
+  const repoInput = document.createElement("input");
+  repoInput.type = "text";
+  repoInput.className = "password-input text-input";
+  repoInput.placeholder = "mikecapito/reunion-data";
+  repoInput.autocomplete = "off";
+  repoInput.setAttribute("autocapitalize", "off");
+  repoInput.setAttribute("spellcheck", "false");
+  repoInput.value = (last && last.repo) || "";
+  form.appendChild(repoInput);
+
+  const slugLabel = document.createElement("label");
+  slugLabel.className = "field-label";
+  slugLabel.textContent = "Family (optional, for multi-family repos)";
+  form.appendChild(slugLabel);
+  const slugInput = document.createElement("input");
+  slugInput.type = "text";
+  slugInput.className = "password-input text-input";
+  slugInput.placeholder = "smith";
+  slugInput.autocomplete = "off";
+  slugInput.setAttribute("autocapitalize", "off");
+  slugInput.setAttribute("spellcheck", "false");
+  slugInput.value = (last && last.slug) || "";
+  form.appendChild(slugInput);
+
+  const open = document.createElement("button");
+  open.type = "submit";
+  open.className = "btn-primary";
+  open.textContent = "Open";
+  form.appendChild(open);
+
+  container.appendChild(form);
+
+  const error = document.createElement("p");
+  error.className = "error-message";
+  container.appendChild(error);
+
+  const status = document.createElement("p");
+  status.className = "landing-status";
+  container.appendChild(status);
+
+  const adminRow = document.createElement("p");
+  adminRow.className = "admin-link-row";
+  const adminLink = document.createElement("a");
+  adminLink.href = "admin.html";
+  adminLink.textContent = "Create a new family →";
+  adminLink.addEventListener("click", e => {
+    const dp = buildDataParam(repoInput.value, slugInput.value);
+    if (dp) {
+      e.preventDefault();
+      window.location.href = "admin.html?data=" + encodeURIComponent(dp);
+    }
+  });
+  adminRow.appendChild(adminLink);
+  container.appendChild(adminRow);
+
+  screen.appendChild(container);
+  showScreen("landing");
+  setTimeout(() => repoInput.focus(), 50);
+
+  let busy = false;
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (busy) return;
+    error.textContent = "";
+    status.textContent = "";
+
+    const dataParam = buildDataParam(repoInput.value, slugInput.value);
+    if (!dataParam) {
+      error.textContent = "Enter a repo (e.g. owner/repo) or a full URL.";
+      repoInput.focus();
+      return;
+    }
+    const source = resolveDataSource(dataParam);
+    if (!source) {
+      error.textContent = "That doesn't look like a valid repo or URL.";
+      return;
+    }
+
+    busy = true;
+    open.disabled = true;
+    open.textContent = "Checking…";
+    status.textContent = "Looking for " + source.encUrl;
+
+    try {
+      const resp = await fetch(source.encUrl, { cache: "no-store" });
+      if (!resp.ok) {
+        error.textContent = resp.status === 404
+          ? "No family data found at that location. Check the spelling, or use \"Create a new family →\" below."
+          : "Couldn't reach that location (HTTP " + resp.status + ").";
+        status.textContent = "";
+        return;
+      }
+    } catch (err) {
+      error.textContent = "Couldn't reach the network. Try again.";
+      status.textContent = "";
+      return;
+    } finally {
+      open.disabled = false;
+      open.textContent = "Open";
+      busy = false;
+    }
+
+    try {
+      localStorage.setItem(LANDING_LAST_KEY, JSON.stringify({
+        repo: repoInput.value.trim(),
+        slug: slugInput.value.trim()
+      }));
+    } catch (e) { /* ignore */ }
+
+    const next = new URL(window.location.href);
+    next.searchParams.set("data", dataParam);
+    window.location.replace(next.toString());
+  });
+}
+
 function renderError(message) {
   const screen = document.getElementById("error-screen");
   screen.innerHTML = "";
@@ -828,6 +981,12 @@ function renderError(message) {
 async function init() {
   buildBrowseScreen();
   buildQuizScreen();
+
+  const params = new URLSearchParams(window.location.search);
+  if (!params.get("data")) {
+    renderLanding();
+    return;
+  }
 
   const result = await loadFamilyData();
   if (!result.ok) {
