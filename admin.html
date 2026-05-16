@@ -9,7 +9,9 @@
     <meta http-equiv="Expires" content="0" />
     <title>Family Flashcards — Admin</title>
     <script>
-      // See comment in index.html. Propagates ?cb=... to asset URLs.
+      // See comment in index.html. Propagates ?cb=... to asset URLs and
+      // waits for DOMContentLoaded before loading admin.js (dynamic scripts
+      // ignore defer and can otherwise run before the screen divs exist).
       (function () {
         var cb = new URLSearchParams(location.search).get("cb");
         var suf = cb ? "?cb=" + cb : "";
@@ -17,10 +19,16 @@
         l.rel = "stylesheet";
         l.href = "admin.css" + suf;
         document.head.appendChild(l);
-        var s = document.createElement("script");
-        s.src = "admin.js" + suf;
-        s.defer = true;
-        document.head.appendChild(s);
+        function loadScripts() {
+          var s = document.createElement("script");
+          s.src = "admin.js" + suf;
+          document.head.appendChild(s);
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", loadScripts);
+        } else {
+          loadScripts();
+        }
       })();
     </script>
   </head>

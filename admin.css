@@ -307,6 +307,21 @@ input.shake {
   text-decoration: underline;
 }
 
+.exit-row {
+  padding: 8px 16px 0;
+  text-align: right;
+}
+
+.exit-link {
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.exit-link:hover {
+  text-decoration: underline;
+}
+
 .login-card .version-line {
   margin: 18px 0 0;
   text-align: center;

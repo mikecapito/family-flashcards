@@ -307,6 +307,23 @@ function resolveDataSource(dataParam) {
   };
 }
 
+// Build a ?data= value for `newSlug` that preserves the form of the original
+// dataParam (owner/repo, owner/repo/slug, https://.../, or https://.../slug).
+function dataParamWithSlug(originalDataParam, newSlug) {
+  if (!originalDataParam) return newSlug;
+  if (/^https?:\/\//i.test(originalDataParam)) {
+    if (originalDataParam.endsWith("/")) return originalDataParam + newSlug;
+    const lastSlash = originalDataParam.lastIndexOf("/");
+    if (lastSlash < originalDataParam.indexOf("://") + 3) {
+      return originalDataParam + "/" + newSlug;
+    }
+    return originalDataParam.slice(0, lastSlash + 1) + newSlug;
+  }
+  const parts = originalDataParam.split("/").filter(Boolean);
+  if (parts.length >= 2) return parts[0] + "/" + parts[1] + "/" + newSlug;
+  return originalDataParam + "/" + newSlug;
+}
+
 function inferRepoFromLocation() {
   const host = window.location.hostname;
   const segments = window.location.pathname.split("/").filter(Boolean).filter(s => !s.endsWith(".html"));
@@ -1002,7 +1019,18 @@ async function attemptCreateFamily(refs) {
       saveStoredRepo(`${adminState.owner}/${adminState.repo}`);
     } catch (e) { /* ignore */ }
 
-    // Set up state for a new, unpublished family
+    // Set up state for a new, unpublished family. Re-anchor dataParam and
+    // the URL bar onto the new slug so a reload (and the Back-to-app link)
+    // land on the freshly created family instead of the one the admin
+    // happened to be viewing when they clicked Create.
+    const newDataParam = dataParamWithSlug(adminState.dataParam, slug);
+    adminState.dataParam = newDataParam;
+    try {
+      const u = new URL(location.href);
+      u.searchParams.set("data", newDataParam);
+      history.replaceState(null, "", u.toString());
+    } catch (e) { /* ignore */ }
+
     adminState.photosBase = photosBase;
     adminState.familySlug = slug;
     adminState.encUrl = photosBase + slug + ".enc.json";
@@ -1053,6 +1081,24 @@ function renderPeopleList() {
   });
   top.appendChild(publish);
   screen.appendChild(top);
+
+  // Exit-to-app link — handy after publishing to verify the result.
+  if (adminState.dataParam) {
+    const exitRow = el("div", { class: "exit-row" });
+    exitRow.appendChild(el("a", {
+      class: "exit-link",
+      href: "./?data=" + encodeURIComponent(adminState.dataParam),
+      text: "View as user ↗",
+      onclick: e => {
+        if (hasUnsavedChanges()) {
+          if (!confirm("You have unsaved changes. Leave without publishing?")) {
+            e.preventDefault();
+          }
+        }
+      }
+    }));
+    screen.appendChild(exitRow);
+  }
 
   if (adminState.isNewFamily) {
     screen.appendChild(el("div", { class: "new-family-banner",
@@ -1795,4 +1841,8 @@ function init() {
   renderLogin();
 }
 
-document.addEventListener("DOMContentLoaded", init);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}

@@ -23,14 +23,27 @@
         l.rel = "stylesheet";
         l.href = "styles.css" + suf;
         document.head.appendChild(l);
-        var h = document.createElement("script");
-        h.src = "https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js";
-        h.defer = true;
-        document.head.appendChild(h);
-        var s = document.createElement("script");
-        s.src = "app.js" + suf;
-        s.defer = true;
-        document.head.appendChild(s);
+        // Dynamically-added scripts ignore the `defer` attribute and run as
+        // soon as they're fetched — which can beat the body to the DOM and
+        // leave us with a blank page. Wait for DOMContentLoaded so app.js
+        // sees the screen divs.
+        function loadScripts() {
+          // async=false on dynamic scripts preserves insertion order
+          // (so Hammer is defined before app.js runs).
+          var h = document.createElement("script");
+          h.src = "https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js";
+          h.async = false;
+          document.head.appendChild(h);
+          var s = document.createElement("script");
+          s.src = "app.js" + suf;
+          s.async = false;
+          document.head.appendChild(s);
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", loadScripts);
+        } else {
+          loadScripts();
+        }
       })();
     </script>
   </head>
