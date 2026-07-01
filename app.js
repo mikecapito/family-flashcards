@@ -1,135 +1,13 @@
-// ---------- Hardcoded data (replaced by fetched data in session 4) ----------
-
-const config = {
-  familyName: "The Frist Family Reunion 2026",
-  ancestor: "eleanor-frist",
-  password: "frist2026"
+// ---------- App state ----------
+// dataState holds everything loaded from the data repo. familyName +
+// (optional) groupPhoto + people come from the decrypted payload.
+const dataState = {
+  baseUrl: null,
+  familyName: null,
+  envelope: null,
+  groupPhoto: null,
+  people: []
 };
-
-const people = [
-  {
-    id: "eleanor-frist",
-    name: "Eleanor Frist",
-    photo: "https://placecats.com/300/300",
-    birthday: "1935-03-12",
-    funFact: "Taught herself to play piano at age 60.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: [], parentsRaw: [],
-      siblings: ["george-frist"], siblingsRaw: ["George Frist"],
-      spouses: [], spousesRaw: [],
-      children: ["robert-frist", "carol-frist"], childrenRaw: ["Robert Frist", "Carol Frist"]
-    }
-  },
-  {
-    id: "robert-frist",
-    name: "Robert Frist",
-    photo: "https://placecats.com/301/300",
-    birthday: "1962-07-04",
-    funFact: "Has visited every US national park.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: ["eleanor-frist"], parentsRaw: ["Eleanor Frist"],
-      siblings: ["carol-frist"], siblingsRaw: ["Carol Frist"],
-      spouses: ["diane-frist"], spousesRaw: ["Diane Frist"],
-      children: ["mike-frist", "sarah-frist"], childrenRaw: ["Mike Frist", "Sarah Frist"]
-    }
-  },
-  {
-    id: "carol-frist",
-    name: "Carol Frist",
-    photo: "https://placecats.com/302/300",
-    birthday: "1965-11-20",
-    funFact: "Makes the best apple pie in three counties.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: ["eleanor-frist"], parentsRaw: ["Eleanor Frist"],
-      siblings: ["robert-frist"], siblingsRaw: ["Robert Frist"],
-      spouses: [], spousesRaw: [],
-      children: ["jake-frist"], childrenRaw: ["Jake Frist"]
-    }
-  },
-  {
-    id: "diane-frist",
-    name: "Diane Frist",
-    photo: "https://placecats.com/303/300",
-    birthday: "1964-04-29",
-    funFact: "Ran a marathon in every decade of her life.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: [], parentsRaw: [],
-      siblings: [], siblingsRaw: [],
-      spouses: ["robert-frist"], spousesRaw: ["Robert Frist"],
-      children: ["mike-frist", "sarah-frist"], childrenRaw: ["Mike Frist", "Sarah Frist"]
-    }
-  },
-  {
-    id: "mike-frist",
-    name: "Mike Frist",
-    photo: "https://placecats.com/304/300",
-    birthday: "1990-08-15",
-    funFact: "Once ate 12 tacos in a single sitting.",
-    syncedAt: null,
-    family: {
-      grandparents: ["eleanor-frist"], grandparentsRaw: ["Eleanor Frist"],
-      parents: ["robert-frist", "diane-frist"], parentsRaw: ["Robert Frist", "Diane Frist"],
-      siblings: ["sarah-frist"], siblingsRaw: ["Sarah Frist"],
-      spouses: [], spousesRaw: [],
-      children: [], childrenRaw: []
-    }
-  },
-  {
-    id: "sarah-frist",
-    name: "Sarah Frist",
-    photo: "https://placecats.com/305/300",
-    birthday: "1993-12-01",
-    funFact: "Speaks four languages fluently.",
-    syncedAt: null,
-    family: {
-      grandparents: ["eleanor-frist"], grandparentsRaw: ["Eleanor Frist"],
-      parents: ["robert-frist", "diane-frist"], parentsRaw: ["Robert Frist", "Diane Frist"],
-      siblings: ["mike-frist"], siblingsRaw: ["Mike Frist"],
-      spouses: [], spousesRaw: [],
-      children: [], childrenRaw: []
-    }
-  },
-  {
-    id: "jake-frist",
-    name: "Jake Frist",
-    photo: "https://placecats.com/306/300",
-    birthday: "1992-05-30",
-    funFact: "Built his own sailing boat from scratch.",
-    syncedAt: null,
-    family: {
-      grandparents: ["eleanor-frist"], grandparentsRaw: ["Eleanor Frist"],
-      parents: ["carol-frist"], parentsRaw: ["Carol Frist"],
-      siblings: [], siblingsRaw: [],
-      spouses: [], spousesRaw: [],
-      children: [], childrenRaw: []
-    }
-  },
-  {
-    id: "george-frist",
-    name: "George Frist",
-    photo: "https://placecats.com/307/300",
-    birthday: "1938-09-08",
-    funFact: "Played semi-professional baseball in the 1950s.",
-    syncedAt: null,
-    family: {
-      grandparents: [], grandparentsRaw: [],
-      parents: [], parentsRaw: [],
-      siblings: ["eleanor-frist"], siblingsRaw: ["Eleanor Frist"],
-      spouses: [], spousesRaw: [],
-      children: [], childrenRaw: []
-    }
-  }
-];
-
-// ---------- State ----------
 
 const state = {
   deck: [],
@@ -137,10 +15,44 @@ const state = {
   animating: false
 };
 
+const quizState = {
+  questions: [],
+  index: 0,
+  score: 0,
+  locked: false,
+  pendingTimeout: null
+};
+
 // ---------- Utilities ----------
 
 function getPersonById(id) {
-  return people.find(p => p.id === id);
+  return dataState.people.find(p => p.id === id);
+}
+
+function formatBuildTime() {
+  const d = new Date(document.lastModified);
+  if (isNaN(d.getTime())) return "unknown";
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function forceCacheBustReload() {
+  // Best-effort: nuke any Cache Storage entries (no service worker today, but
+  // free safety net). Then reload at a new ?cb=... so index.html and — via
+  // the bootstrap in <head> — all local assets get fetched fresh.
+  const go = () => {
+    const url = new URL(location.href);
+    url.searchParams.set("cb", Date.now().toString(36));
+    location.replace(url.toString());
+  };
+  if (window.caches && caches.keys) {
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .catch(() => {})
+      .then(go);
+  } else {
+    go();
+  }
 }
 
 function shuffle(arr) {
@@ -153,9 +65,7 @@ function shuffle(arr) {
 }
 
 function buildDeck() {
-  const ancestor = getPersonById(config.ancestor);
-  const others = people.filter(p => p.id !== config.ancestor);
-  return [ancestor, ...shuffle(others)];
+  return shuffle(dataState.people);
 }
 
 function calcAge(birthday) {
@@ -174,39 +84,372 @@ function isBirthMonth(birthday) {
   return birth.getMonth() === new Date().getMonth();
 }
 
-// ---------- Screen renderers ----------
-// Function-per-screen pattern. Session 2 adds renderPassword + renderHome content.
+function photoUrl(relativePath) {
+  if (!relativePath) return "";
+  if (/^https?:\/\//i.test(relativePath)) return relativePath;
+  if (!dataState.baseUrl) return relativePath;
+  return dataState.baseUrl + relativePath.replace(/^\/+/, "");
+}
+
+// ---------- Crypto (Web Crypto API) ----------
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function deriveKey(password, salt, iterations) {
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+}
+
+async function decryptEnvelope(envelope, password) {
+  const salt = base64ToBytes(envelope.salt);
+  const iv = base64ToBytes(envelope.iv);
+  const ciphertext = base64ToBytes(envelope.ciphertext);
+  const key = await deriveKey(password, salt, envelope.iterations);
+  const plaintextBuf = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    ciphertext
+  );
+  return JSON.parse(new TextDecoder().decode(plaintextBuf));
+}
+
+// ---------- Data loading ----------
+
+// Resolves ?data= into { encUrl, photosBaseUrl }.
+// Supported forms:
+//   owner/repo            → photosBase https://owner.github.io/repo/
+//                           enc       https://owner.github.io/repo/data.enc.json
+//   owner/repo/slug       → photosBase https://owner.github.io/repo/
+//                           enc       https://owner.github.io/repo/slug.enc.json
+//   https://host/path/    → photosBase https://host/path/
+//                           enc       https://host/path/data.enc.json
+//   https://host/path/slug → photosBase https://host/path/
+//                           enc       https://host/path/slug.enc.json
+function resolveDataSource(dataParam) {
+  if (!dataParam) return null;
+
+  if (/^https?:\/\//i.test(dataParam)) {
+    if (dataParam.endsWith("/")) {
+      return { encUrl: dataParam + "data.enc.json", photosBase: dataParam };
+    }
+    const lastSlash = dataParam.lastIndexOf("/");
+    if (lastSlash < dataParam.indexOf("://") + 3) return null;
+    const photosBase = dataParam.slice(0, lastSlash + 1);
+    const slug = dataParam.slice(lastSlash + 1);
+    if (!/^[\w.-]+$/.test(slug)) return null;
+    return { encUrl: photosBase + slug + ".enc.json", photosBase };
+  }
+
+  const parts = dataParam.split("/").filter(Boolean);
+  if (parts.length < 2 || parts.length > 3) return null;
+  if (!parts.every(p => /^[\w.-]+$/.test(p))) return null;
+  const photosBase = `https://${parts[0]}.github.io/${parts[1]}/`;
+  const file = parts.length === 3 ? parts[2] + ".enc.json" : "data.enc.json";
+  return { encUrl: photosBase + file, photosBase };
+}
+
+async function loadFamilyData() {
+  const params = new URLSearchParams(window.location.search);
+  const source = resolveDataSource(params.get("data"));
+  if (!source) {
+    return {
+      ok: false,
+      kind: "no-data",
+      message:
+        "No family data specified. The link you used should include a ?data= parameter — please ask the person who shared the link."
+    };
+  }
+  dataState.baseUrl = source.photosBase;
+
+  let envelopeResp;
+  try {
+    envelopeResp = await fetch(source.encUrl, { cache: "no-store" });
+  } catch (e) {
+    return {
+      ok: false,
+      kind: "network",
+      message: "Couldn't load family data — check your connection and reload."
+    };
+  }
+  if (!envelopeResp.ok) {
+    return {
+      ok: false,
+      kind: "network",
+      message: "Couldn't load family data — check your connection and reload."
+    };
+  }
+
+  let envelope;
+  try {
+    envelope = await envelopeResp.json();
+  } catch (e) {
+    return {
+      ok: false,
+      kind: "corrupt",
+      message: "Family data appears corrupted — contact the family organizer."
+    };
+  }
+
+  if (
+    !envelope ||
+    envelope.version !== 1 ||
+    typeof envelope.salt !== "string" ||
+    typeof envelope.iv !== "string" ||
+    typeof envelope.ciphertext !== "string" ||
+    typeof envelope.iterations !== "number"
+  ) {
+    return {
+      ok: false,
+      kind: "corrupt",
+      message: "Family data appears corrupted — contact the family organizer."
+    };
+  }
+
+  dataState.envelope = envelope;
+  return { ok: true };
+}
+
+// ---------- Screen routing ----------
+
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(el => el.classList.remove("active"));
+  const target = document.getElementById(`${name}-screen`);
+  if (target) target.classList.add("active");
+}
+
+// ---------- Password screen ----------
 
 function renderPassword() {
-  // Placeholder for session 2.
+  const screen = document.getElementById("password-screen");
+  screen.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "password-container";
+
+  const heading = document.createElement("h1");
+  heading.className = "family-name";
+  heading.textContent = "Family Flashcards";
+  container.appendChild(heading);
+
+  const sub = document.createElement("p");
+  sub.className = "subheading";
+  sub.textContent = "Please enter the family password";
+  container.appendChild(sub);
+
+  const form = document.createElement("form");
+  form.className = "password-form";
+
+  const input = document.createElement("input");
+  input.type = "password";
+  input.className = "password-input";
+  input.id = "password-input";
+  input.autocomplete = "off";
+  input.setAttribute("autocapitalize", "off");
+  input.setAttribute("spellcheck", "false");
+  form.appendChild(input);
+
+  const button = document.createElement("button");
+  button.type = "submit";
+  button.className = "btn-primary";
+  button.textContent = "Enter";
+  form.appendChild(button);
+
+  container.appendChild(form);
+
+  const error = document.createElement("p");
+  error.className = "error-message";
+  error.id = "password-error";
+  container.appendChild(error);
+
+  const dataParam = new URLSearchParams(window.location.search).get("data");
+  if (dataParam) {
+    const adminRow = document.createElement("p");
+    adminRow.className = "admin-link-row";
+    const adminLink = document.createElement("a");
+    adminLink.href = "admin.html?data=" + encodeURIComponent(dataParam);
+    adminLink.textContent = "Admin →";
+    adminRow.appendChild(adminLink);
+    container.appendChild(adminRow);
+  }
+
+  const version = document.createElement("p");
+  version.className = "version-line";
+  version.appendChild(document.createTextNode("built " + formatBuildTime() + " · "));
+  const refresh = document.createElement("a");
+  refresh.href = "#";
+  refresh.className = "refresh-link";
+  refresh.textContent = "force refresh";
+  refresh.addEventListener("click", e => {
+    e.preventDefault();
+    forceCacheBustReload();
+  });
+  version.appendChild(refresh);
+  container.appendChild(version);
+
+  screen.appendChild(container);
+
+  let busy = false;
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (busy) return;
+    let password = input.value;
+    if (!password) return;
+
+    busy = true;
+    input.disabled = true;
+    button.disabled = true;
+    button.textContent = "Decrypting…";
+    button.classList.add("is-busy");
+    error.textContent = "";
+
+    try {
+      const decrypted = await decryptEnvelope(dataState.envelope, password);
+      // Discard the password from local references as soon as we're done with it.
+      password = null;
+
+      if (
+        !decrypted ||
+        typeof decrypted.familyName !== "string" ||
+        !Array.isArray(decrypted.people)
+      ) {
+        // Decrypt succeeded but plaintext is malformed — treat as corrupt data.
+        renderError("Family data appears corrupted — contact the family organizer.");
+        return;
+      }
+
+      dataState.familyName = decrypted.familyName;
+      dataState.groupPhoto = typeof decrypted.groupPhoto === "string" && decrypted.groupPhoto
+        ? decrypted.groupPhoto : null;
+      dataState.people = decrypted.people;
+
+      input.value = "";
+      renderHome();
+    } catch (err) {
+      // AES-GCM throws on bad key/tag — overwhelmingly the wrong-password case.
+      error.textContent = "Incorrect password — try again";
+      input.value = "";
+      input.classList.remove("shake");
+      void input.offsetWidth;
+      input.classList.add("shake");
+      input.focus();
+    } finally {
+      busy = false;
+      input.disabled = false;
+      button.disabled = false;
+      button.textContent = "Enter";
+      button.classList.remove("is-busy");
+    }
+  });
+
+  showScreen("password");
+  setTimeout(() => input.focus(), 50);
 }
+
+// ---------- Home screen ----------
 
 function renderHome() {
-  // Placeholder for session 2.
+  const screen = document.getElementById("home-screen");
+  screen.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "home-container";
+
+  const heading = document.createElement("h1");
+  heading.className = "family-name home-title";
+  heading.textContent = dataState.familyName || "";
+  container.appendChild(heading);
+
+  if (dataState.groupPhoto) {
+    const feature = document.createElement("div");
+    feature.className = "group-photo-feature";
+    const photo = document.createElement("img");
+    photo.className = "group-photo";
+    photo.src = photoUrl(dataState.groupPhoto);
+    photo.alt = dataState.familyName || "";
+    feature.appendChild(photo);
+    container.appendChild(feature);
+  }
+
+  const buttons = document.createElement("div");
+  buttons.className = "mode-buttons";
+
+  const browseBtn = document.createElement("button");
+  browseBtn.type = "button";
+  browseBtn.className = "btn-primary mode-btn";
+  browseBtn.textContent = "Browse";
+  browseBtn.addEventListener("click", () => renderBrowse());
+  buttons.appendChild(browseBtn);
+
+  const quizBtn = document.createElement("button");
+  quizBtn.type = "button";
+  quizBtn.className = "btn-primary mode-btn";
+  quizBtn.textContent = "Quiz";
+  quizBtn.addEventListener("click", () => renderQuiz());
+  buttons.appendChild(quizBtn);
+
+  container.appendChild(buttons);
+
+  screen.appendChild(container);
+  showScreen("home");
 }
 
-function renderBrowse() {
-  const app = document.getElementById("app");
-  app.innerHTML = "";
+// ---------- Browse screen ----------
 
-  const screen = document.createElement("div");
-  screen.className = "screen browse";
+function buildBrowseScreen() {
+  const screen = document.getElementById("browse-screen");
+  screen.innerHTML = "";
+
+  const browse = document.createElement("div");
+  browse.className = "browse";
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "back-button";
+  back.setAttribute("aria-label", "Back to home");
+  back.textContent = "‹";
+  back.addEventListener("click", () => renderHome());
+  browse.appendChild(back);
 
   const indicator = document.createElement("div");
   indicator.className = "position-indicator";
-  screen.appendChild(indicator);
+  browse.appendChild(indicator);
 
   const viewport = document.createElement("div");
   viewport.className = "card-viewport";
-  screen.appendChild(viewport);
+  browse.appendChild(viewport);
 
-  app.appendChild(screen);
+  screen.appendChild(browse);
 
-  mountCard(viewport, indicator);
   attachSwipe(viewport);
 }
 
-// ---------- Card rendering ----------
+function renderBrowse() {
+  state.deck = buildDeck();
+  state.index = 0;
+  state.animating = false;
+  const viewport = document.querySelector("#browse-screen .card-viewport");
+  const indicator = document.querySelector("#browse-screen .position-indicator");
+  mountCard(viewport, indicator);
+  showScreen("browse");
+}
 
 function mountCard(viewport, indicator) {
   viewport.innerHTML = "";
@@ -220,16 +463,14 @@ function buildCardElement(person) {
   const card = document.createElement("div");
   card.className = "card";
 
-  // Photo
   const photo = document.createElement("div");
   photo.className = "card-photo";
   const img = document.createElement("img");
-  img.src = person.photo;
+  img.src = photoUrl(person.photo);
   img.alt = person.name;
   photo.appendChild(img);
   card.appendChild(photo);
 
-  // Info
   const info = document.createElement("div");
   info.className = "card-info";
 
@@ -312,8 +553,6 @@ function renderChipGroup(label, ids, raws) {
   return group;
 }
 
-// ---------- Navigation ----------
-
 function goNext() {
   if (state.animating) return;
   if (state.index >= state.deck.length - 1) return;
@@ -347,7 +586,6 @@ function animateTo(newIndex, direction) {
   viewport.appendChild(newCard);
 
   state.animating = true;
-  // Force layout so the initial transform applies before we transition.
   void newCard.offsetWidth;
 
   if (oldCard) {
@@ -368,13 +606,10 @@ function animateTo(newIndex, direction) {
   };
 
   newCard.addEventListener("transitionend", cleanup, { once: true });
-  // Safety fallback in case transitionend doesn't fire.
   setTimeout(() => {
     if (state.animating) cleanup();
   }, 500);
 }
-
-// ---------- Swipe ----------
 
 function attachSwipe(el) {
   if (typeof Hammer === "undefined") return;
@@ -384,13 +619,390 @@ function attachSwipe(el) {
   mc.on("swiperight", goPrev);
 }
 
-// ---------- Entry point ----------
+// ---------- Quiz screen ----------
 
-function init() {
-  state.deck = buildDeck();
-  state.index = 0;
-  // Session 2 will route through renderPassword/renderHome first.
-  renderBrowse();
+function generateQuiz() {
+  const order = shuffle(dataState.people);
+  return order.map(person => {
+    const others = dataState.people.filter(p => p.id !== person.id);
+    const distractors = shuffle(others).slice(0, 3);
+    const choices = shuffle([person, ...distractors]);
+    return { person, choices };
+  });
 }
 
-document.addEventListener("DOMContentLoaded", init);
+function buildQuizScreen() {
+  const screen = document.getElementById("quiz-screen");
+  screen.innerHTML = "";
+
+  const quiz = document.createElement("div");
+  quiz.className = "quiz";
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "back-button";
+  back.setAttribute("aria-label", "Back to home");
+  back.textContent = "‹";
+  back.addEventListener("click", exitQuiz);
+  quiz.appendChild(back);
+
+  const progress = document.createElement("div");
+  progress.className = "quiz-progress";
+  progress.id = "quiz-progress";
+  quiz.appendChild(progress);
+
+  const photoWrap = document.createElement("div");
+  photoWrap.className = "quiz-photo";
+  const img = document.createElement("img");
+  img.id = "quiz-photo-img";
+  img.alt = "";
+  photoWrap.appendChild(img);
+  quiz.appendChild(photoWrap);
+
+  const choices = document.createElement("div");
+  choices.className = "quiz-choices";
+  choices.id = "quiz-choices";
+  for (let i = 0; i < 4; i++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "quiz-choice";
+    btn.dataset.slot = String(i);
+    btn.addEventListener("click", () => onChoice(i));
+    choices.appendChild(btn);
+  }
+  quiz.appendChild(choices);
+
+  screen.appendChild(quiz);
+}
+
+function renderQuiz() {
+  cancelPendingAdvance();
+  quizState.questions = generateQuiz();
+  quizState.index = 0;
+  quizState.score = 0;
+  quizState.locked = false;
+  showQuestion();
+  showScreen("quiz");
+}
+
+function showQuestion() {
+  const q = quizState.questions[quizState.index];
+  const img = document.getElementById("quiz-photo-img");
+  const progress = document.getElementById("quiz-progress");
+  img.src = photoUrl(q.person.photo);
+  img.alt = q.person.name;
+  progress.textContent = `Question ${quizState.index + 1} of ${quizState.questions.length}`;
+  const buttons = document.querySelectorAll("#quiz-choices .quiz-choice");
+  buttons.forEach((btn, i) => {
+    btn.textContent = q.choices[i].name;
+    btn.classList.remove("quiz-choice--correct", "quiz-choice--wrong");
+    btn.disabled = false;
+  });
+  quizState.locked = false;
+}
+
+function onChoice(i) {
+  if (quizState.locked) return;
+  quizState.locked = true;
+
+  const q = quizState.questions[quizState.index];
+  const buttons = document.querySelectorAll("#quiz-choices .quiz-choice");
+  const isCorrect = q.choices[i].id === q.person.id;
+  const correctIndex = q.choices.findIndex(c => c.id === q.person.id);
+
+  buttons.forEach(btn => { btn.disabled = true; });
+
+  if (isCorrect) {
+    quizState.score++;
+    buttons[i].classList.add("quiz-choice--correct");
+    quizState.pendingTimeout = setTimeout(advanceQuiz, 1000);
+  } else {
+    buttons[i].classList.add("quiz-choice--wrong");
+    if (correctIndex !== -1) {
+      buttons[correctIndex].classList.add("quiz-choice--correct");
+    }
+    quizState.pendingTimeout = setTimeout(advanceQuiz, 1500);
+  }
+}
+
+function advanceQuiz() {
+  quizState.pendingTimeout = null;
+  quizState.index++;
+  if (quizState.index >= quizState.questions.length) {
+    renderQuizEnd();
+  } else {
+    showQuestion();
+  }
+}
+
+function cancelPendingAdvance() {
+  if (quizState.pendingTimeout !== null) {
+    clearTimeout(quizState.pendingTimeout);
+    quizState.pendingTimeout = null;
+  }
+}
+
+function exitQuiz() {
+  cancelPendingAdvance();
+  renderHome();
+}
+
+// ---------- Quiz end screen ----------
+
+function renderQuizEnd() {
+  const screen = document.getElementById("quiz-end-screen");
+  screen.innerHTML = "";
+
+  const total = quizState.questions.length;
+  const score = quizState.score;
+
+  const container = document.createElement("div");
+  container.className = "quiz-end-container";
+
+  const scoreEl = document.createElement("div");
+  scoreEl.className = "quiz-end-score";
+  scoreEl.textContent = `${score} / ${total}`;
+  container.appendChild(scoreEl);
+
+  const message = document.createElement("p");
+  message.className = "quiz-end-message";
+  if (score >= 7) message.textContent = "Great job!";
+  else if (score >= 4) message.textContent = "Nice work!";
+  else message.textContent = "Keep practicing!";
+  container.appendChild(message);
+
+  const buttons = document.createElement("div");
+  buttons.className = "quiz-end-buttons";
+
+  const tryAgain = document.createElement("button");
+  tryAgain.type = "button";
+  tryAgain.className = "btn-primary mode-btn";
+  tryAgain.textContent = "Try Again";
+  tryAgain.addEventListener("click", () => renderQuiz());
+  buttons.appendChild(tryAgain);
+
+  const home = document.createElement("button");
+  home.type = "button";
+  home.className = "btn-secondary mode-btn";
+  home.textContent = "Home";
+  home.addEventListener("click", () => renderHome());
+  buttons.appendChild(home);
+
+  container.appendChild(buttons);
+  screen.appendChild(container);
+  showScreen("quiz-end");
+}
+
+// ---------- Error screen ----------
+
+const LANDING_LAST_KEY = "family-flashcards.landing.last";
+
+function buildDataParam(repo, slug) {
+  const r = (repo || "").trim().replace(/\/+$/, "");
+  const s = (slug || "").trim();
+  if (!r) return "";
+  return s ? r + "/" + s : r;
+}
+
+function renderLanding() {
+  const screen = document.getElementById("landing-screen");
+  screen.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "landing-container";
+
+  const heading = document.createElement("h1");
+  heading.className = "family-name";
+  heading.textContent = "Family Flashcards";
+  container.appendChild(heading);
+
+  const sub = document.createElement("p");
+  sub.className = "subheading";
+  sub.textContent = "Enter the location of your family's data to get started.";
+  container.appendChild(sub);
+
+  const form = document.createElement("form");
+  form.className = "password-form";
+
+  let last = null;
+  try { last = JSON.parse(localStorage.getItem(LANDING_LAST_KEY) || "null"); }
+  catch (e) { /* ignore */ }
+
+  const repoLabel = document.createElement("label");
+  repoLabel.className = "field-label";
+  repoLabel.textContent = "GitHub repo (owner/repo)";
+  form.appendChild(repoLabel);
+  const repoInput = document.createElement("input");
+  repoInput.type = "text";
+  repoInput.className = "password-input text-input";
+  repoInput.placeholder = "mikecapito/reunion-data";
+  repoInput.autocomplete = "off";
+  repoInput.setAttribute("autocapitalize", "off");
+  repoInput.setAttribute("spellcheck", "false");
+  repoInput.value = (last && last.repo) || "";
+  form.appendChild(repoInput);
+
+  const slugLabel = document.createElement("label");
+  slugLabel.className = "field-label";
+  slugLabel.textContent = "Family name (leave blank for single-family repos)";
+  form.appendChild(slugLabel);
+  const slugInput = document.createElement("input");
+  slugInput.type = "text";
+  slugInput.className = "password-input text-input";
+  slugInput.placeholder = "smith";
+  slugInput.autocomplete = "off";
+  slugInput.setAttribute("autocapitalize", "off");
+  slugInput.setAttribute("spellcheck", "false");
+  slugInput.value = (last && last.slug) || "";
+  form.appendChild(slugInput);
+
+  const open = document.createElement("button");
+  open.type = "submit";
+  open.className = "btn-primary";
+  open.textContent = "Open";
+  form.appendChild(open);
+
+  container.appendChild(form);
+
+  const error = document.createElement("p");
+  error.className = "error-message";
+  container.appendChild(error);
+
+  const status = document.createElement("p");
+  status.className = "landing-status";
+  container.appendChild(status);
+
+  const adminRow = document.createElement("p");
+  adminRow.className = "admin-link-row";
+  const adminLink = document.createElement("a");
+  adminLink.href = "admin.html";
+  adminLink.textContent = "Create a new family →";
+  adminLink.addEventListener("click", e => {
+    const dp = buildDataParam(repoInput.value, slugInput.value);
+    if (dp) {
+      e.preventDefault();
+      window.location.href = "admin.html?data=" + encodeURIComponent(dp);
+    }
+  });
+  adminRow.appendChild(adminLink);
+  container.appendChild(adminRow);
+
+  screen.appendChild(container);
+  showScreen("landing");
+  setTimeout(() => repoInput.focus(), 50);
+
+  let busy = false;
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (busy) return;
+    error.textContent = "";
+    status.textContent = "";
+
+    const slugTyped = slugInput.value.trim();
+    const dataParam = buildDataParam(repoInput.value, slugTyped);
+    if (!dataParam) {
+      error.textContent = "Enter a repo (e.g. mikecapito/reunion-data).";
+      repoInput.focus();
+      return;
+    }
+    const source = resolveDataSource(dataParam);
+    if (!source) {
+      error.textContent = "That doesn't look like a valid repo.";
+      return;
+    }
+
+    busy = true;
+    open.disabled = true;
+    open.textContent = "Checking…";
+    status.textContent = "Looking for " + source.encUrl;
+
+    try {
+      const resp = await fetch(source.encUrl, { cache: "no-store" });
+      if (!resp.ok) {
+        if (resp.status === 404 && !slugTyped) {
+          error.textContent = "No file found at that repo's root. If this is a multi-family repo, fill in the Family name above.";
+        } else if (resp.status === 404) {
+          error.textContent = "No family named \"" + slugTyped + "\" in that repo. Check the spelling, or use Create a new family below.";
+        } else {
+          error.textContent = "Couldn't reach that location (HTTP " + resp.status + ").";
+        }
+        status.textContent = "";
+        return;
+      }
+    } catch (err) {
+      error.textContent = "Couldn't reach that URL. If your repo uses a custom domain (e.g. a CNAME pointing at capitos.com), paste the full URL like https://capitos.com/reunion-data/ in the repo field instead of owner/repo.";
+      status.textContent = "";
+      return;
+    } finally {
+      open.disabled = false;
+      open.textContent = "Open";
+      busy = false;
+    }
+
+    try {
+      localStorage.setItem(LANDING_LAST_KEY, JSON.stringify({
+        repo: repoInput.value.trim(),
+        slug: slugInput.value.trim()
+      }));
+    } catch (e) { /* ignore */ }
+
+    const next = new URL(window.location.href);
+    next.searchParams.set("data", dataParam);
+    window.location.replace(next.toString());
+  });
+}
+
+function renderError(message) {
+  const screen = document.getElementById("error-screen");
+  screen.innerHTML = "";
+
+  const container = document.createElement("div");
+  container.className = "error-container";
+
+  const heading = document.createElement("h1");
+  heading.className = "error-heading";
+  heading.textContent = "Something went wrong";
+  container.appendChild(heading);
+
+  const msg = document.createElement("p");
+  msg.className = "error-message-text";
+  msg.textContent = message;
+  container.appendChild(msg);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn-primary mode-btn";
+  btn.textContent = "Reload";
+  btn.addEventListener("click", () => window.location.reload());
+  container.appendChild(btn);
+
+  screen.appendChild(container);
+  showScreen("error");
+}
+
+// ---------- Entry point ----------
+
+async function init() {
+  buildBrowseScreen();
+  buildQuizScreen();
+
+  const params = new URLSearchParams(window.location.search);
+  if (!params.get("data")) {
+    renderLanding();
+    return;
+  }
+
+  const result = await loadFamilyData();
+  if (!result.ok) {
+    renderError(result.message);
+    return;
+  }
+  renderPassword();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
