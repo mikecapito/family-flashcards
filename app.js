@@ -931,7 +931,7 @@ function renderLanding() {
         return;
       }
     } catch (err) {
-      error.textContent = "Couldn't reach the network. Try again.";
+      error.textContent = "Couldn't reach that URL. If your repo uses a custom domain (e.g. a CNAME pointing at capitos.com), paste the full URL like https://capitos.com/reunion-data/ in the repo field instead of owner/repo.";
       status.textContent = "";
       return;
     } finally {
